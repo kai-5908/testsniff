@@ -1,0 +1,4 @@
+interface:
+  display_name: "Code Review"
+  short_description: "General and repo-aware code review"
+  default_prompt: "Use $code-review to review the target changes from general software engineering and testsniff-specific perspectives, and prioritize findings by severity."
