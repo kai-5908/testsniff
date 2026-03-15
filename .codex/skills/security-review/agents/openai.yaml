@@ -1,0 +1,4 @@
+interface:
+  display_name: "Security Review"
+  short_description: "Threat-focused code and config review"
+  default_prompt: "Use $security-review to review the target changes from a security perspective and prioritize concrete findings by severity."

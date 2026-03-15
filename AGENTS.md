@@ -42,6 +42,8 @@ Primary product goals:
 - [docs/design-docs/git-operation-skill-rules.md](/home/aoi_takanashi/testsniff/docs/design-docs/git-operation-skill-rules.md): Required repo-local skills for git pull, commit, and push.
 - [docs/design-docs/local-git-hook-rules.md](/home/aoi_takanashi/testsniff/docs/design-docs/local-git-hook-rules.md): Local pre-commit and pre-push hook policy.
 - [issue-to-plan skill](/home/aoi_takanashi/testsniff/.codex/skills/issue-to-plan/SKILL.md): Local skill for issue-driven planning before implementation.
+- [code-review skill](/home/aoi_takanashi/testsniff/.codex/skills/code-review/SKILL.md): Local skill for general software engineering review plus testsniff-specific review checks.
+- [security-review skill](/home/aoi_takanashi/testsniff/.codex/skills/security-review/SKILL.md): Local skill for threat-focused security review of code, config, and design changes.
 - [pull skill](/home/aoi_takanashi/testsniff/.codex/skills/pull/SKILL.md): Local skill for merge-based branch updates.
 - [commit skill](/home/aoi_takanashi/testsniff/.codex/skills/commit/SKILL.md): Local skill for scoped conventional-style commits.
 - [push skill](/home/aoi_takanashi/testsniff/.codex/skills/push/SKILL.md): Local skill for pushing topic branches and updating PRs.

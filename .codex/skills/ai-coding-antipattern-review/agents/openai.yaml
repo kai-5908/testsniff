@@ -1,0 +1,4 @@
+interface:
+  display_name: "AI Coding Antipattern Review"
+  short_description: "Review AI coding anti-patterns"
+  default_prompt: "Use $ai-coding-antipattern-review to review this change for AI-assisted coding anti-patterns."
