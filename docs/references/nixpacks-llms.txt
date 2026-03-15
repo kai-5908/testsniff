@@ -1,0 +1,8 @@
+Reference placeholder for Nixpacks-related notes.
+
+Populate only if deployment or packaging work requires Nixpacks.
+
+Recommended contents:
+- link or source identifier
+- retrieval date
+- short summary of relevant behavior
