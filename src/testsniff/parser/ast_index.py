@@ -34,10 +34,13 @@ class ASTIndex:
                 classes.append(node)
 
         if isinstance(tree, ast.Module):
-            unittest_aliases, testcase_aliases = _collect_import_aliases(tree)
+            unittest_aliases, unittest_case_aliases, testcase_aliases = _collect_import_aliases(
+                tree
+            )
             testcase_class_names = _collect_testcase_class_names(
                 tree,
                 unittest_aliases=unittest_aliases,
+                unittest_case_aliases=unittest_case_aliases,
                 testcase_aliases=testcase_aliases,
             )
             test_targets.extend(
@@ -54,8 +57,9 @@ class ASTIndex:
         )
 
 
-def _collect_import_aliases(tree: ast.Module) -> tuple[set[str], set[str]]:
+def _collect_import_aliases(tree: ast.Module) -> tuple[set[str], set[str], set[str]]:
     unittest_aliases: set[str] = set()
+    unittest_case_aliases: set[str] = set()
     testcase_aliases: set[str] = set()
 
     for statement in tree.body:
@@ -63,6 +67,8 @@ def _collect_import_aliases(tree: ast.Module) -> tuple[set[str], set[str]]:
             for alias in statement.names:
                 if alias.name == "unittest":
                     unittest_aliases.add(alias.asname or alias.name)
+                elif alias.name == "unittest.case":
+                    unittest_case_aliases.add(alias.asname or alias.name)
         elif isinstance(statement, ast.ImportFrom) and statement.module in {
             "unittest",
             "unittest.case",
@@ -70,14 +76,17 @@ def _collect_import_aliases(tree: ast.Module) -> tuple[set[str], set[str]]:
             for alias in statement.names:
                 if alias.name == "TestCase":
                     testcase_aliases.add(alias.asname or alias.name)
+                elif statement.module == "unittest" and alias.name == "case":
+                    unittest_case_aliases.add(alias.asname or alias.name)
 
-    return unittest_aliases, testcase_aliases
+    return unittest_aliases, unittest_case_aliases, testcase_aliases
 
 
 def _collect_testcase_class_names(
     tree: ast.Module,
     *,
     unittest_aliases: set[str],
+    unittest_case_aliases: set[str],
     testcase_aliases: set[str],
 ) -> set[str]:
     classes = [statement for statement in tree.body if isinstance(statement, ast.ClassDef)]
@@ -90,6 +99,7 @@ def _collect_testcase_class_names(
             base_reference = _resolve_base_reference(
                 base,
                 unittest_aliases=unittest_aliases,
+                unittest_case_aliases=unittest_case_aliases,
                 testcase_aliases=testcase_aliases,
                 class_names=class_names,
             )
@@ -125,16 +135,21 @@ def _collect_test_targets(
                 targets.append(TestTarget(node=statement, style="pytest"))
             continue
 
-        if not isinstance(statement, ast.ClassDef) or statement.name not in testcase_class_names:
+        if not isinstance(statement, ast.ClassDef):
+            continue
+
+        if statement.name in testcase_class_names:
+            style: Literal["pytest", "unittest"] = "unittest"
+        elif _is_pytest_test_class(statement):
+            style = "pytest"
+        else:
             continue
 
         for member in statement.body:
             if isinstance(member, (ast.FunctionDef, ast.AsyncFunctionDef)) and _is_test_name(
                 member.name
             ):
-                targets.append(
-                    TestTarget(node=member, style="unittest", class_name=statement.name)
-                )
+                targets.append(TestTarget(node=member, style=style, class_name=statement.name))
 
     return targets
 
@@ -143,6 +158,7 @@ def _resolve_base_reference(
     base: ast.expr,
     *,
     unittest_aliases: set[str],
+    unittest_case_aliases: set[str],
     testcase_aliases: set[str],
     class_names: set[str],
 ) -> str | None:
@@ -163,6 +179,8 @@ def _resolve_base_reference(
         for alias in unittest_aliases
     ):
         return TESTCASE_ROOT
+    if any(dotted_name == f"{alias}.TestCase" for alias in unittest_case_aliases):
+        return TESTCASE_ROOT
     return None
 
 
@@ -179,3 +197,10 @@ def _as_dotted_name(node: ast.expr) -> str | None:
 
 def _is_test_name(name: str) -> bool:
     return name.startswith("test_")
+
+
+def _is_pytest_test_class(class_node: ast.ClassDef) -> bool:
+    return class_node.name.startswith("Test") and not any(
+        isinstance(member, (ast.FunctionDef, ast.AsyncFunctionDef)) and member.name == "__init__"
+        for member in class_node.body
+    )

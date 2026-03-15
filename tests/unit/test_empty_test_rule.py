@@ -28,8 +28,26 @@ def test_empty_test_rule_reports_docstring_only_test() -> None:
     assert findings[0].rule_id == "TS001"
 
 
+def test_empty_test_rule_reports_pytest_class_test_method() -> None:
+    findings = _analyze_fixture("positive_pytest_class_method.py")
+
+    assert len(findings) == 1
+    finding = findings[0]
+    assert finding.rule_id == "TS001"
+    assert finding.line == 2
+
+
 def test_empty_test_rule_reports_unittest_test_method() -> None:
     findings = _analyze_fixture("positive_unittest_method.py")
+
+    assert len(findings) == 1
+    finding = findings[0]
+    assert finding.rule_id == "TS001"
+    assert finding.line == 5
+
+
+def test_empty_test_rule_reports_unittest_case_alias_method() -> None:
+    findings = _analyze_fixture("positive_unittest_case_alias_method.py")
 
     assert len(findings) == 1
     finding = findings[0]

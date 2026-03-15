@@ -26,12 +26,17 @@ def outer():
 class PlainClass:
     def test_method(self):
         pass
+
+class TestExample:
+    def test_method(self):
+        pass
 """.strip(),
     )
 
     assert _summarize(module) == [
         ("pytest", None, "test_top_level"),
         ("pytest", None, "test_async_top_level"),
+        ("pytest", "TestExample", "test_method"),
     ]
 
 
@@ -67,6 +72,29 @@ class Plain:
         ("unittest", "Direct", "test_direct"),
         ("unittest", "Indirect", "test_indirect"),
         ("unittest", "Namespaced", "test_namespaced"),
+    ]
+
+
+def test_detects_unittest_targets_for_case_module_aliases() -> None:
+    module = ModuleContext.from_source(
+        Path("tests/test_unittest_case_alias_targets.py"),
+        """
+from unittest import case as case_module
+import unittest.case as case_pkg
+
+class FromAlias(case_module.TestCase):
+    def test_from_alias(self):
+        pass
+
+class FromImport(case_pkg.TestCase):
+    def test_from_import(self):
+        pass
+""".strip(),
+    )
+
+    assert _summarize(module) == [
+        ("unittest", "FromAlias", "test_from_alias"),
+        ("unittest", "FromImport", "test_from_import"),
     ]
 
 
@@ -110,6 +138,7 @@ def test_resolves_reverse_ordered_unittest_inheritance_in_linear_base_resolution
         base,
         *,
         unittest_aliases,
+        unittest_case_aliases,
         testcase_aliases,
         class_names,
     ):
@@ -118,6 +147,7 @@ def test_resolves_reverse_ordered_unittest_inheritance_in_linear_base_resolution
         return original(
             base,
             unittest_aliases=unittest_aliases,
+            unittest_case_aliases=unittest_case_aliases,
             testcase_aliases=testcase_aliases,
             class_names=class_names,
         )
