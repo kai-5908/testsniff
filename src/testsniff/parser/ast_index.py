@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import ast
+from collections import deque
 from dataclasses import dataclass
 from typing import Literal
 
 FunctionNode = ast.FunctionDef | ast.AsyncFunctionDef
+TESTCASE_ROOT = "__testsniff_unittest_testcase_root__"
 
 
 @dataclass(slots=True, frozen=True)
@@ -78,26 +80,34 @@ def _collect_testcase_class_names(
     unittest_aliases: set[str],
     testcase_aliases: set[str],
 ) -> set[str]:
-    testcase_class_names: set[str] = set()
     classes = [statement for statement in tree.body if isinstance(statement, ast.ClassDef)]
+    class_names = {class_node.name for class_node in classes}
+    dependents: dict[str, set[str]] = {class_node.name: set() for class_node in classes}
+    testcase_class_names: set[str] = set()
 
-    changed = True
-    while changed:
-        changed = False
-        for class_node in classes:
-            if class_node.name in testcase_class_names:
+    for class_node in classes:
+        for base in class_node.bases:
+            base_reference = _resolve_base_reference(
+                base,
+                unittest_aliases=unittest_aliases,
+                testcase_aliases=testcase_aliases,
+                class_names=class_names,
+            )
+            if base_reference is None:
                 continue
-            if any(
-                _is_testcase_base(
-                    base,
-                    unittest_aliases=unittest_aliases,
-                    testcase_aliases=testcase_aliases,
-                    testcase_class_names=testcase_class_names,
-                )
-                for base in class_node.bases
-            ):
+            if base_reference == TESTCASE_ROOT:
                 testcase_class_names.add(class_node.name)
-                changed = True
+                continue
+            dependents[base_reference].add(class_node.name)
+
+    queue = deque(testcase_class_names)
+    while queue:
+        base_class_name = queue.popleft()
+        for derived_class_name in dependents.get(base_class_name, ()):
+            if derived_class_name in testcase_class_names:
+                continue
+            testcase_class_names.add(derived_class_name)
+            queue.append(derived_class_name)
 
     return testcase_class_names
 
@@ -129,25 +139,31 @@ def _collect_test_targets(
     return targets
 
 
-def _is_testcase_base(
+def _resolve_base_reference(
     base: ast.expr,
     *,
     unittest_aliases: set[str],
     testcase_aliases: set[str],
-    testcase_class_names: set[str],
-) -> bool:
+    class_names: set[str],
+) -> str | None:
     if isinstance(base, ast.Name):
-        return base.id in testcase_aliases or base.id in testcase_class_names
+        if base.id in testcase_aliases:
+            return TESTCASE_ROOT
+        if base.id in class_names:
+            return base.id
+        return None
 
     dotted_name = _as_dotted_name(base)
     if dotted_name is None:
-        return False
+        return None
     if dotted_name in {"unittest.TestCase", "unittest.case.TestCase"}:
-        return True
-    return any(
+        return TESTCASE_ROOT
+    if any(
         dotted_name in {f"{alias}.TestCase", f"{alias}.case.TestCase"}
         for alias in unittest_aliases
-    )
+    ):
+        return TESTCASE_ROOT
+    return None
 
 
 def _as_dotted_name(node: ast.expr) -> str | None:
