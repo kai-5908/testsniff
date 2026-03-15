@@ -30,7 +30,18 @@ Examples:
 - `fix/config-threshold-filter`
 - `docs/release-rules`
 
-### Rule 3: `main` should stay releasable
+### Rule 3: parallel task work should use `git worktree`
+
+When multiple tasks may proceed in parallel, each task should have its own `git worktree` rooted from `main`.
+
+This repository treats a task-specific worktree as the default workspace for:
+- implementation
+- planning documents
+- task-scoped documentation changes
+
+The primary checkout of `main` should remain available as the stable source branch for creating new task worktrees.
+
+### Rule 4: `main` should stay releasable
 
 Changes merged into `main` should keep the repository in a releasable state.
 
@@ -40,7 +51,7 @@ At minimum this means:
 - GitHub Actions CI remains green
 - externally visible documentation stays in sync with behavior
 
-### Rule 4: long-running branches require explicit justification
+### Rule 5: long-running branches require explicit justification
 
 If a branch is expected to live for an extended period, that should be recorded in an execution plan or design decision, including why trunk-based work is not sufficient.
 
@@ -48,7 +59,7 @@ If a branch is expected to live for an extended period, that should be recorded 
 
 Version 1 uses tag-based releases from `main`.
 
-### Rule 5: releases are cut from tagged commits on `main`
+### Rule 6: releases are cut from tagged commits on `main`
 
 The source of truth for a release is a version tag on a `main` commit.
 
@@ -57,7 +68,7 @@ Recommended tag format:
 - `v0.2.0`
 - `v0.2.1`
 
-### Rule 6: versioning follows Semantic Versioning, pre-1.0
+### Rule 7: versioning follows Semantic Versioning, pre-1.0
 
 The repository should use SemVer, with version numbers in the `0.y.z` range until the external contract is stable enough for `1.0.0`.
 
@@ -65,11 +76,11 @@ Interpretation for version 0:
 - `0.y.0`: notable feature or external behavior expansion
 - `0.y.z`: backward-compatible bug fix or packaging fix
 
-### Rule 7: release builds should be created with `uv build`
+### Rule 8: release builds should be created with `uv build`
 
 Versioned distribution artifacts should be built from the tagged commit using the selected project tooling.
 
-### Rule 8: releases are automated from GitHub tag events
+### Rule 9: releases are automated from GitHub tag events
 
 The repository should use GitHub Actions to validate a tagged release, build artifacts, and publish the GitHub release.
 
