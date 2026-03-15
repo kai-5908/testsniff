@@ -10,8 +10,11 @@
 - 複数ステップにまたがる作業や横断的な作業は、`docs/exec-plans/active/` に実行計画を作成します。
 - 完了した実行計画は `docs/exec-plans/completed/` に移動します。
 - 直ちに着手しない課題は [docs/exec-plans/tech-debt-tracker.md](/home/aoi_takanashi/testsniff/docs/exec-plans/tech-debt-tracker.md) に記録します。
+- GitHub Issue を起票する場合は、`.github/ISSUE_TEMPLATE/task.yml` と [docs/design-docs/issue-management-rules.md](/home/aoi_takanashi/testsniff/docs/design-docs/issue-management-rules.md) に従います。
 
 計画運用は [docs/design-docs/branch-and-release-rules.md](/home/aoi_takanashi/testsniff/docs/design-docs/branch-and-release-rules.md) で定義されたブランチ戦略と整合している必要があります。
+
+Issue 起点の作業では、[docs/design-docs/issue-to-plan-workflow.md](/home/aoi_takanashi/testsniff/docs/design-docs/issue-to-plan-workflow.md) に従い、issue を取得してから plan を作成し、承認後に実装へ進みます。
 
 ## Plan Language Rule
 

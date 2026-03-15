@@ -1,0 +1,141 @@
+name: Task
+description: v1.0.0 までの開発タスクを起票するためのテンプレート
+title: "[Task] "
+labels:
+  - task
+body:
+  - type: markdown
+    attributes:
+      value: |
+        1 Issue = 1 Task を前提としたテンプレートです。
+
+        記入方針:
+        - 実装・文書・運用のいずれであっても、1つの完了可能な単位に絞る
+        - 他タスクへの依存は必要最小限にする
+        - 受け入れ条件は検証可能な文にする
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: 概要
+      description: この Issue で何を行うかを簡潔に書いてください。
+      placeholder: |
+        例:
+        TS002 Comments-only Test を実装する。
+        コメントまたは docstring しか持たない test を検出対象に追加する。
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: なぜやるか
+      description: ユーザー価値、開発上の必要性、v1.0.0 への寄与を書いてください。
+      placeholder: |
+        例:
+        Empty Test に近いが別の誤用パターンとして実際に起こりうるため。
+        v1.0.0 の rule catalog に含めることで、静的検出のカバレッジを広げるため。
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: スコープ
+      description: この Issue で含める作業範囲を書いてください。
+      placeholder: |
+        - ルール本体の実装
+        - metadata の追加
+        - positive / negative fixture の追加
+        - unit / integration test の追加
+    validations:
+      required: true
+
+  - type: textarea
+    id: non_goals
+    attributes:
+      label: 非ゴール
+      description: この Issue では扱わないことを明示してください。
+      placeholder: |
+        - auto-fix の実装は含めない
+        - pytest fixture の高度な解釈は次 Issue で扱う
+    validations:
+      required: false
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: 依存関係
+      description: 前提となる Issue や文書、決定事項があれば書いてください。なければ「なし」と記載してください。
+      placeholder: |
+        なし
+        または
+        - #12 test function 判定ルールの標準化
+        - docs/product-specs/rule-catalog-scope.md
+    validations:
+      required: true
+
+  - type: textarea
+    id: dor
+    attributes:
+      label: DoR
+      description: 着手可能と判断するための条件を書いてください。
+      value: |
+        - [ ] 問題設定と対象範囲が明確になっている
+        - [ ] 依存する仕様・文書・先行 Issue が確認できている
+        - [ ] 変更対象のコード領域が特定できている
+        - [ ] 検証方法が最低限決まっている
+        - [ ] この Issue 単体で完了判定できる粒度になっている
+    validations:
+      required: true
+
+  - type: textarea
+    id: dod
+    attributes:
+      label: DoD
+      description: 完了とみなすための条件を書いてください。
+      value: |
+        - [ ] 実装または文書変更が完了している
+        - [ ] 関連テストまたは検証が追加・更新されている
+        - [ ] 必要なドキュメント更新が完了している
+        - [ ] CI またはローカルの必須チェックが通っている
+        - [ ] 受け入れ条件を満たすことが確認されている
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: 受け入れ条件
+      description: 検証可能な条件を列挙してください。箇条書きを推奨します。
+      placeholder: |
+        - `testsniff scan` で対象パターンを検出できる
+        - 非対象パターンでは誤検知しない
+        - `human` と `json` 出力に必要な metadata が含まれる
+    validations:
+      required: true
+
+  - type: textarea
+    id: validation_plan
+    attributes:
+      label: 検証方法
+      description: 実装後にどう確認するかを書いてください。
+      placeholder: |
+        - `uv run ruff check src tests`
+        - `uv run ty check src`
+        - `uv run pytest -q`
+        - 対象 fixture で CLI の出力確認
+    validations:
+      required: true
+
+  - type: textarea
+    id: references
+    attributes:
+      label: 参考資料・リンク
+      description: 関連ドキュメント、実行計画、外部参照などがあれば書いてください。
+      placeholder: |
+        - docs/product-specs/rule-catalog-scope.md
+        - docs/design-docs/reporting-contract.md
+        - https://test-smell-catalog.readthedocs.io/
+    validations:
+      required: false

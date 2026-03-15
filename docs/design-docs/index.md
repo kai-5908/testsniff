@@ -17,6 +17,11 @@ Read only the relevant document for the task. Each entry records both decision s
 | [application-architecture.md](/home/aoi_takanashi/testsniff/docs/design-docs/application-architecture.md) | Concrete module boundaries and scan flow for version 1 | Adopted | Partially verified |
 | [internal-quality-rules.md](/home/aoi_takanashi/testsniff/docs/design-docs/internal-quality-rules.md) | Internal architecture quality rules and enforcement expectations | Adopted | Conceptual |
 | [branch-and-release-rules.md](/home/aoi_takanashi/testsniff/docs/design-docs/branch-and-release-rules.md) | Branching, versioning, and release rules for version 1 | Adopted | Partially verified |
+| [issue-management-rules.md](/home/aoi_takanashi/testsniff/docs/design-docs/issue-management-rules.md) | Task issue structure and minimum content rules | Adopted | Conceptual |
+| [pull-request-rules.md](/home/aoi_takanashi/testsniff/docs/design-docs/pull-request-rules.md) | Pull request structure and review minimum rules | Adopted | Conceptual |
+| [issue-to-plan-workflow.md](/home/aoi_takanashi/testsniff/docs/design-docs/issue-to-plan-workflow.md) | Workflow for turning GitHub issues into approved execution plans | Adopted | Conceptual |
+| [git-operation-skill-rules.md](/home/aoi_takanashi/testsniff/docs/design-docs/git-operation-skill-rules.md) | Required repo-local skills for git pull, commit, and push | Adopted | Conceptual |
+| [local-git-hook-rules.md](/home/aoi_takanashi/testsniff/docs/design-docs/local-git-hook-rules.md) | Local pre-commit and pre-push hook policy | Adopted | Partially verified |
 
 ## Status Definitions
 

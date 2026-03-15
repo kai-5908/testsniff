@@ -36,6 +36,15 @@ Primary product goals:
 - [docs/design-docs/technical-stack.md](/home/aoi_takanashi/testsniff/docs/design-docs/technical-stack.md): Adopted version 1 technology choices.
 - [docs/design-docs/internal-quality-rules.md](/home/aoi_takanashi/testsniff/docs/design-docs/internal-quality-rules.md): Internal architecture quality rules and test expectations.
 - [docs/design-docs/branch-and-release-rules.md](/home/aoi_takanashi/testsniff/docs/design-docs/branch-and-release-rules.md): Branching, versioning, and release rules.
+- [docs/design-docs/issue-management-rules.md](/home/aoi_takanashi/testsniff/docs/design-docs/issue-management-rules.md): GitHub Issue structure and task granularity rules.
+- [docs/design-docs/pull-request-rules.md](/home/aoi_takanashi/testsniff/docs/design-docs/pull-request-rules.md): Pull request structure, verification, and review rules.
+- [docs/design-docs/issue-to-plan-workflow.md](/home/aoi_takanashi/testsniff/docs/design-docs/issue-to-plan-workflow.md): Required workflow for fetching an issue, drafting a Japanese execution plan, and waiting for approval.
+- [docs/design-docs/git-operation-skill-rules.md](/home/aoi_takanashi/testsniff/docs/design-docs/git-operation-skill-rules.md): Required repo-local skills for git pull, commit, and push.
+- [docs/design-docs/local-git-hook-rules.md](/home/aoi_takanashi/testsniff/docs/design-docs/local-git-hook-rules.md): Local pre-commit and pre-push hook policy.
+- [issue-to-plan skill](/home/aoi_takanashi/testsniff/.codex/skills/issue-to-plan/SKILL.md): Local skill for issue-driven planning before implementation.
+- [pull skill](/home/aoi_takanashi/testsniff/.codex/skills/pull/SKILL.md): Local skill for merge-based branch updates.
+- [commit skill](/home/aoi_takanashi/testsniff/.codex/skills/commit/SKILL.md): Local skill for scoped conventional-style commits.
+- [push skill](/home/aoi_takanashi/testsniff/.codex/skills/push/SKILL.md): Local skill for pushing topic branches and updating PRs.
 - [docs/product-specs/index.md](/home/aoi_takanashi/testsniff/docs/product-specs/index.md): Product requirements and user journeys.
 - [docs/DESIGN.md](/home/aoi_takanashi/testsniff/docs/DESIGN.md): Design principles and scope boundaries.
 - [docs/FRONTEND.md](/home/aoi_takanashi/testsniff/docs/FRONTEND.md): UX guidance for CLI and future integrations.
@@ -55,6 +64,17 @@ Primary product goals:
 3. If the task is non-trivial, create or update an execution plan.
 4. Make code or document changes.
 5. Update affected docs before finishing.
+
+For issue-driven implementation work:
+1. Fetch the issue first.
+2. Use the local `issue-to-plan` skill.
+3. Create or update a Japanese execution plan under `docs/exec-plans/active/`.
+4. Share the plan and wait for human approval before implementation.
+
+For git operations:
+1. Use the local `pull` skill for branch updates.
+2. Use the local `commit` skill for commits.
+3. Use the local `push` skill for push and PR updates.
 
 ## When To Update Docs
 
