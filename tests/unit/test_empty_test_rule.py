@@ -28,6 +28,15 @@ def test_empty_test_rule_reports_docstring_only_test() -> None:
     assert findings[0].rule_id == "TS001"
 
 
+def test_empty_test_rule_reports_unittest_test_method() -> None:
+    findings = _analyze_fixture("positive_unittest_method.py")
+
+    assert len(findings) == 1
+    finding = findings[0]
+    assert finding.rule_id == "TS001"
+    assert finding.line == 5
+
+
 def test_empty_test_rule_ignores_real_assertions() -> None:
     findings = _analyze_fixture("negative_assert.py")
 
@@ -36,6 +45,18 @@ def test_empty_test_rule_ignores_real_assertions() -> None:
 
 def test_empty_test_rule_ignores_non_test_helpers() -> None:
     findings = _analyze_fixture("negative_helper_pass.py")
+
+    assert findings == []
+
+
+def test_empty_test_rule_ignores_nested_test_like_functions() -> None:
+    findings = _analyze_fixture("negative_nested_test_like.py")
+
+    assert findings == []
+
+
+def test_empty_test_rule_ignores_methods_on_non_testcase_classes() -> None:
+    findings = _analyze_fixture("negative_non_testcase_method.py")
 
     assert findings == []
 
