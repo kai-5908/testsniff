@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if ! command -v git >/dev/null 2>&1; then
+  echo "pre-commit: git is required" >&2
+  exit 1
+fi
+
+if ! command -v uv >/dev/null 2>&1; then
+  echo "pre-commit: uv is required" >&2
+  exit 1
+fi
+
+if ! git diff --cached --check >/tmp/testsniff-pre-commit-check.log 2>&1; then
+  echo "pre-commit: staged changes contain whitespace errors or conflict markers" >&2
+  cat /tmp/testsniff-pre-commit-check.log >&2 || true
+  exit 1
+fi
+
+mapfile -t python_files < <(git diff --cached --name-only --diff-filter=ACMR -- "*.py")
+
+if [ "${#python_files[@]}" -eq 0 ]; then
+  exit 0
+fi
+
+echo "pre-commit: running Ruff on staged Python files"
+uv run ruff check "${python_files[@]}"

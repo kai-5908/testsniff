@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+remote_name="${1:-}"
+remote_url="${2:-}"
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  if [ "$remote_ref" = "refs/heads/main" ]; then
+    echo "pre-push: direct pushes to main are not allowed in this repository" >&2
+    echo "pre-push: push a topic branch and open or update a pull request instead" >&2
+    exit 1
+  fi
+done
+
+if ! command -v uv >/dev/null 2>&1; then
+  echo "pre-push: uv is required" >&2
+  exit 1
+fi
+
+echo "pre-push: validating branch before push to ${remote_name:-<unknown>} ${remote_url:-}"
+uv run ruff check src tests
+uv run ty check src
+uv run pytest -q

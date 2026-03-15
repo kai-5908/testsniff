@@ -108,6 +108,7 @@ At that point, introducing `release/*` branches may become justified.
 ## Related Docs
 
 - [docs/design-docs/technical-stack.md](/home/aoi_takanashi/testsniff/docs/design-docs/technical-stack.md)
+- [docs/design-docs/git-operation-skill-rules.md](/home/aoi_takanashi/testsniff/docs/design-docs/git-operation-skill-rules.md)
 - [docs/PLANS.md](/home/aoi_takanashi/testsniff/docs/PLANS.md)
 - [CHANGELOG.md](/home/aoi_takanashi/testsniff/CHANGELOG.md)
 - [AGENTS.md](/home/aoi_takanashi/testsniff/AGENTS.md)
