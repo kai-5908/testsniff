@@ -15,6 +15,8 @@ Summarize the product and engineering design principles that apply across the re
 
 The project is still pre-implementation. Design work should focus on preserving explainability and precision in a static-only architecture before optimizing extensibility.
 
+The authoritative v1.0.0 rule subset is defined in [docs/product-specs/rule-catalog-scope.md](/home/aoi_takanashi/testsniff/docs/product-specs/rule-catalog-scope.md). New rule work should align with that catalog before expanding scope.
+
 ## Design Boundaries
 
 - The detector is not expected to use machine learning or probabilistic scoring.

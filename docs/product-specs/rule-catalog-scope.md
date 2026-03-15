@@ -1,17 +1,18 @@
 # Rule Catalog Scope
 
-- Status: Draft
-- Intended user: Maintainers deciding whether a test smell belongs in the initial product scope
+- Status: Adopted
+- Intended user: Maintainers deciding whether a test smell belongs in the v1.0.0 product scope
+- Success signal: A maintainer can decide whether a smell belongs in v1.0.0 and assign its initial severity and confidence without reopening scope debates.
 
 ## Goal
 
-Define the criteria for including a smell from the public catalog in this tool.
+Ratify the v1.0.0 test smell catalog for `testsniff`.
 
 The project uses `rule-based` to mean:
 - findings are produced by explicit logic and thresholds
 - no machine-learned or probabilistic scoring is used as the decision mechanism
 
-## Current Scope Boundary
+## Version 1 Boundary
 
 - `static`: source-only analysis using parsed code and related source artifacts
 - `out-of-scope`: smells that require runtime observation, probabilistic modeling, or unsupported external evidence
@@ -30,10 +31,38 @@ The project uses `rule-based` to mean:
 - Rules that need unsupported external evidence or deep semantic knowledge beyond static analysis.
 - Rules whose remediation cannot be made concrete enough for the default formatter.
 
-## Deliverables
+## Rule ID Policy
 
-- A ratified rule catalog with included and excluded smells.
-- Static detection signal for each supported smell.
-- Initial severity and confidence policy per supported smell.
-- Rationale for exclusions.
-- Rule metadata template for future additions.
+- Implemented rules keep stable rule IDs.
+- Unimplemented v1.0.0 rules may appear in this catalog by smell name before their final rule ID is assigned.
+- Stable IDs for unimplemented rules are assigned in the follow-up implementation issue, not in this catalog change.
+
+## Severity And Confidence Policy
+
+- `severity` values for version 1 are `error`, `warning`, and `info`.
+- `confidence` values for version 1 are `high` and `medium`.
+- The ratified v1.0.0 catalog below uses `high` confidence only.
+- `medium` remains available for future threshold-driven structural rules, but those rules are not part of the current v1.0.0 catalog.
+
+## Ratified v1.0.0 Rules
+
+| Smell | Rule ID | Static detection signal | Initial severity | Initial confidence | Why it is in scope |
+| --- | --- | --- | --- | --- | --- |
+| `Empty Test` | `TS001` | A test target has no executable body after removing a leading docstring; v1 currently covers `pass`-only, docstring-only, and docstring-plus-empty-body cases. | `error` | `high` | The signal is explicit, the reported location is stable, and the remediation is concrete. |
+| `Disabled / Ignored Test` | Assigned in a follow-up implementation issue | A test target is annotated with an explicit static skip or ignore mechanism that suppresses normal execution. | `warning` | `high` | The rule can be explained statically, reported at a stable decorator or test location, and gives actionable remediation. |
+
+## Explicitly Excluded From v1.0.0
+
+| Smell or smell group | Why it is excluded |
+| --- | --- |
+| `comments-only test` | Python does not treat comments as executable body content, so this is not a distinct Python rule separate from `Empty Test`. |
+| `missing assertion` | Static-only detection would be too noisy because valid patterns such as `pytest.raises`, indirect verification, and helper-driven checks do not always use a bare `assert`. |
+| `Magic Number Test` | Literal values in tests are often intentional test data, so the default remediation would be too context-dependent for a precise version 1 rule. |
+| `Long Test` | The smell depends on project-specific thresholds and would start as a threshold-driven structural rule, which the current v1.0.0 catalog avoids. |
+| runtime-observed smells such as flaky, slow, or order-dependent tests | They require execution or historical evidence and fall outside the static-only boundary. |
+
+## Catalog Maintenance Rules
+
+- Add a new smell to the catalog only if it satisfies the inclusion criteria above.
+- Update this document in the same change that alters user-facing rule scope or initial severity/confidence policy.
+- Keep excluded smells explicit when they are likely to be requested, so unsupported checks are not implied by omission.

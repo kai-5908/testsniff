@@ -9,7 +9,7 @@ This index lists user- and product-facing specifications. These documents descri
 | Document | Scope | Status |
 | --- | --- | --- |
 | [new-user-onboarding.md](/home/aoi_takanashi/testsniff/docs/product-specs/new-user-onboarding.md) | First-run experience for a new user evaluating the tool | Draft |
-| [rule-catalog-scope.md](/home/aoi_takanashi/testsniff/docs/product-specs/rule-catalog-scope.md) | Defines what qualifies as an in-scope rule-based smell | Draft |
+| [rule-catalog-scope.md](/home/aoi_takanashi/testsniff/docs/product-specs/rule-catalog-scope.md) | Defines the ratified v1.0.0 rule-based smell subset and exclusion boundary | Adopted |
 
 ## Maintenance Rules
 
