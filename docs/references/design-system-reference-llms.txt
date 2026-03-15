@@ -1,0 +1,7 @@
+Reference placeholder for design-system guidance snapshots used by agents.
+
+Current state:
+- No project-specific design system exists yet.
+- The primary interface is expected to be CLI-first.
+
+When populated later, include source, retrieval date, and why the reference is authoritative.

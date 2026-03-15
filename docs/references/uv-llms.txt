@@ -1,0 +1,8 @@
+Reference placeholder for `uv` usage notes and packaging references.
+
+Populate this file when the repository chooses `uv` as part of the developer workflow or distribution path.
+
+Record:
+- authoritative source
+- retrieval date
+- commands that are relied upon in this repository

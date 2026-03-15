@@ -1,0 +1,51 @@
+[build-system]
+requires = ["uv_build"]
+build-backend = "uv_build"
+
+[project]
+name = "testsniff"
+version = "0.1.0"
+description = "Static, rule-based Python test smell detector."
+readme = "AGENTS.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.12"
+dependencies = [
+  "typer>=0.12",
+]
+
+[project.scripts]
+testsniff = "testsniff.cli.main:main"
+
+[dependency-groups]
+dev = [
+  "pytest>=8.0",
+  "ruff>=0.11",
+  "ty",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.testsniff]
+format = "human"
+include = ["test_*.py", "*_test.py"]
+exclude = [".venv/**", "build/**", "dist/**", "__pycache__/**"]
+select = []
+ignore = []
+minimum_confidence = "medium"
+minimum_severity = "info"
+target_paths = ["tests"]
+
