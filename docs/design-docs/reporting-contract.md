@@ -39,9 +39,9 @@ Initial value sets:
 
 Examples:
 
-- `Empty Test`: often `severity=error`, `confidence=high`
-- `Magic Number Test`: often `severity=warning`, `confidence=high`
-- `Long Test`: may be `severity=warning`, `confidence=medium` when it depends on explicit structural thresholds
+- `Empty Test`: `severity=error`, `confidence=high`
+- `Disabled / Ignored Test`: `severity=warning`, `confidence=high`
+- `medium` is reserved for future threshold-driven structural rules; the current ratified v1.0.0 catalog does not use it.
 
 ## Output Modes
 
@@ -58,7 +58,7 @@ All renderers must be derived from the same canonical finding model.
 Each finding should render with the following sections:
 
 ```text
-warning[TS001][confidence=high]: Test has no assertions
+error[TS001][confidence=high]: Test body is empty
   --> tests/test_user_service.py:42:1
   WHY: [rationale and reference]
   FIX: [concrete remediation guidance]
@@ -74,7 +74,7 @@ warning[TS001][confidence=high]: Test has no assertions
 Compact mode should emit a single line per finding:
 
 ```text
-tests/test_user_service.py:42:1: warning[high] TS001 Test has no assertions
+tests/test_user_service.py:42:1: error[high] TS001 Test body is empty
 ```
 
 ## JSON Output Shape
@@ -88,8 +88,8 @@ JSON mode should preserve the canonical model with minimal transformation:
   "findings": [
     {
       "rule_id": "TS001",
-      "headline": "Test has no assertions",
-      "severity": "warning",
+      "headline": "Test body is empty",
+      "severity": "error",
       "confidence": "high",
       "engine": "static",
       "location": {
@@ -97,14 +97,14 @@ JSON mode should preserve the canonical model with minimal transformation:
         "line": 42,
         "column": 1
       },
-      "why": "Tests without assertions can pass while validating nothing.",
-      "fix": "Add an explicit assertion or use pytest.raises/pytest.warns when that matches the intended behavior.",
+      "why": "Empty tests can pass without validating behavior, which creates false confidence in the test suite.",
+      "fix": "Add a real assertion or remove the placeholder test until the intended behavior can be verified.",
       "example": {
-        "bad": "def test_create_user():\n    create_user('alice')",
-        "good": "def test_create_user():\n    user = create_user('alice')\n    assert user.name == 'alice'"
+        "bad": "def test_user_creation():\n    pass",
+        "good": "def test_user_creation():\n    user = create_user(\"alice\")\n    assert user.name == \"alice\""
       },
       "references": [
-        "https://example.invalid/rules/TS001"
+        "docs/product-specs/rule-catalog-scope.md"
       ]
     }
   ]
@@ -117,6 +117,7 @@ JSON mode should preserve the canonical model with minimal transformation:
 - The location should resolve to a stable source line.
 - `severity` and `confidence` must both be visible in `human` and `compact` output.
 - Version 1 confidence values are limited to `high` and `medium`.
+- The ratified v1.0.0 catalog currently uses `high` confidence only; any `medium` confidence rule needs explicit threshold rationale before it ships.
 - `WHY` should explain the design intent behind the rule and link to the authoritative design source or ADR when available.
 - `FIX` should prefer stepwise guidance over generic advice.
 - `EXAMPLE` should show the smallest useful before-and-after snippet.
