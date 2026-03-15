@@ -34,15 +34,7 @@ class ASTIndex:
                 classes.append(node)
 
         if isinstance(tree, ast.Module):
-            unittest_aliases, unittest_case_aliases, testcase_aliases = _collect_import_aliases(
-                tree
-            )
-            testcase_class_names = _collect_testcase_class_names(
-                tree,
-                unittest_aliases=unittest_aliases,
-                unittest_case_aliases=unittest_case_aliases,
-                testcase_aliases=testcase_aliases,
-            )
+            testcase_class_names = _collect_testcase_class_names(tree)
             test_targets.extend(
                 _collect_test_targets(
                     tree,
@@ -57,58 +49,56 @@ class ASTIndex:
         )
 
 
-def _collect_import_aliases(tree: ast.Module) -> tuple[set[str], set[str], set[str]]:
+def _collect_testcase_class_names(tree: ast.Module) -> set[str]:
+    classes = [statement for statement in tree.body if isinstance(statement, ast.ClassDef)]
+    class_names = {class_node.name for class_node in classes}
+    dependents: dict[str, set[str]] = {class_node.name: set() for class_node in classes}
+    testcase_class_names: set[str] = set()
     unittest_aliases: set[str] = set()
     unittest_case_aliases: set[str] = set()
     testcase_aliases: set[str] = set()
 
     for statement in tree.body:
-        if isinstance(statement, ast.Import):
-            for alias in statement.names:
-                if alias.name == "unittest":
-                    unittest_aliases.add(alias.asname or alias.name)
-                elif alias.name == "unittest.case":
-                    unittest_case_aliases.add(alias.asname or alias.name)
-        elif isinstance(statement, ast.ImportFrom) and statement.module in {
-            "unittest",
-            "unittest.case",
-        }:
-            for alias in statement.names:
-                if alias.name == "TestCase":
-                    testcase_aliases.add(alias.asname or alias.name)
-                elif statement.module == "unittest" and alias.name == "case":
-                    unittest_case_aliases.add(alias.asname or alias.name)
+        if isinstance(statement, ast.ClassDef):
+            for base in statement.bases:
+                base_reference = _resolve_base_reference(
+                    base,
+                    unittest_aliases=unittest_aliases,
+                    unittest_case_aliases=unittest_case_aliases,
+                    testcase_aliases=testcase_aliases,
+                    class_names=class_names,
+                )
+                if base_reference is None:
+                    continue
+                if base_reference == TESTCASE_ROOT:
+                    testcase_class_names.add(statement.name)
+                    continue
+                dependents[base_reference].add(statement.name)
+            _discard_rebound_aliases(
+                {statement.name}, unittest_aliases, unittest_case_aliases, testcase_aliases
+            )
+            continue
 
-    return unittest_aliases, unittest_case_aliases, testcase_aliases
+        if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            _discard_rebound_aliases(
+                {statement.name}, unittest_aliases, unittest_case_aliases, testcase_aliases
+            )
+            continue
 
-
-def _collect_testcase_class_names(
-    tree: ast.Module,
-    *,
-    unittest_aliases: set[str],
-    unittest_case_aliases: set[str],
-    testcase_aliases: set[str],
-) -> set[str]:
-    classes = [statement for statement in tree.body if isinstance(statement, ast.ClassDef)]
-    class_names = {class_node.name for class_node in classes}
-    dependents: dict[str, set[str]] = {class_node.name: set() for class_node in classes}
-    testcase_class_names: set[str] = set()
-
-    for class_node in classes:
-        for base in class_node.bases:
-            base_reference = _resolve_base_reference(
-                base,
+        if isinstance(statement, (ast.Import, ast.ImportFrom)):
+            _update_import_aliases(
+                statement,
                 unittest_aliases=unittest_aliases,
                 unittest_case_aliases=unittest_case_aliases,
                 testcase_aliases=testcase_aliases,
-                class_names=class_names,
             )
-            if base_reference is None:
-                continue
-            if base_reference == TESTCASE_ROOT:
-                testcase_class_names.add(class_node.name)
-                continue
-            dependents[base_reference].add(class_node.name)
+            continue
+
+        rebound_names = _collect_rebound_names(statement)
+        if rebound_names:
+            _discard_rebound_aliases(
+                rebound_names, unittest_aliases, unittest_case_aliases, testcase_aliases
+            )
 
     queue = deque(testcase_class_names)
     while queue:
@@ -120,6 +110,77 @@ def _collect_testcase_class_names(
             queue.append(derived_class_name)
 
     return testcase_class_names
+
+
+def _update_import_aliases(
+    statement: ast.Import | ast.ImportFrom,
+    *,
+    unittest_aliases: set[str],
+    unittest_case_aliases: set[str],
+    testcase_aliases: set[str],
+) -> None:
+    bound_names = {alias.asname or alias.name.split(".")[0] for alias in statement.names}
+    _discard_rebound_aliases(bound_names, unittest_aliases, unittest_case_aliases, testcase_aliases)
+
+    if isinstance(statement, ast.Import):
+        for alias in statement.names:
+            if alias.name == "unittest":
+                unittest_aliases.add(alias.asname or alias.name)
+            elif alias.name == "unittest.case":
+                unittest_case_aliases.add(alias.asname or alias.name)
+        return
+
+    if statement.module not in {"unittest", "unittest.case"}:
+        return
+
+    for alias in statement.names:
+        if alias.name == "TestCase":
+            testcase_aliases.add(alias.asname or alias.name)
+        elif statement.module == "unittest" and alias.name == "case":
+            unittest_case_aliases.add(alias.asname or alias.name)
+
+
+def _discard_rebound_aliases(
+    rebound_names: set[str],
+    unittest_aliases: set[str],
+    unittest_case_aliases: set[str],
+    testcase_aliases: set[str],
+) -> None:
+    unittest_aliases.difference_update(rebound_names)
+    unittest_case_aliases.difference_update(rebound_names)
+    testcase_aliases.difference_update(rebound_names)
+
+
+def _collect_rebound_names(statement: ast.stmt) -> set[str]:
+    if isinstance(statement, ast.Assign):
+        names: set[str] = set()
+        for target in statement.targets:
+            names.update(_collect_target_names(target))
+        return names
+    if isinstance(statement, (ast.AnnAssign, ast.AugAssign)):
+        return _collect_target_names(statement.target)
+    if isinstance(statement, (ast.For, ast.AsyncFor)):
+        return _collect_target_names(statement.target)
+    if isinstance(statement, (ast.With, ast.AsyncWith)):
+        names: set[str] = set()
+        for item in statement.items:
+            if item.optional_vars is not None:
+                names.update(_collect_target_names(item.optional_vars))
+        return names
+    return set()
+
+
+def _collect_target_names(target: ast.expr) -> set[str]:
+    if isinstance(target, ast.Name):
+        return {target.id}
+    if isinstance(target, (ast.Tuple, ast.List)):
+        names: set[str] = set()
+        for element in target.elts:
+            names.update(_collect_target_names(element))
+        return names
+    if isinstance(target, ast.Starred):
+        return _collect_target_names(target.value)
+    return set()
 
 
 def _collect_test_targets(

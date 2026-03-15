@@ -102,6 +102,8 @@ def test_does_not_treat_non_unittest_testcase_names_as_targets() -> None:
     module = ModuleContext.from_source(
         Path("tests/test_custom_testcase.py"),
         """
+from unittest import TestCase
+
 class TestCase:
     pass
 
