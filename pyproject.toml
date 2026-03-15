@@ -6,7 +6,7 @@ build-backend = "uv_build"
 name = "testsniff"
 version = "0.1.0"
 description = "Static, rule-based Python test smell detector."
-readme = "AGENTS.md"
+readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.12"
 dependencies = [
@@ -48,4 +48,3 @@ ignore = []
 minimum_confidence = "medium"
 minimum_severity = "info"
 target_paths = ["tests"]
-
