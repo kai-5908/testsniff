@@ -79,6 +79,18 @@ def test_empty_test_rule_ignores_methods_on_non_testcase_classes() -> None:
     assert findings == []
 
 
+def test_empty_test_rule_ignores_pytest_classes_with___new__() -> None:
+    findings = _analyze_fixture("negative_pytest_class_with_new.py")
+
+    assert findings == []
+
+
+def test_empty_test_rule_ignores_pytest_classes_opted_out_via___test__() -> None:
+    findings = _analyze_fixture("negative_pytest_class_opt_out.py")
+
+    assert findings == []
+
+
 def _analyze_fixture(filename: str) -> list[Finding]:
     path = FIXTURES_DIR / filename
     module = ModuleContext.from_source(path, load_source(path))

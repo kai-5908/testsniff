@@ -261,7 +261,28 @@ def _is_test_name(name: str) -> bool:
 
 
 def _is_pytest_test_class(class_node: ast.ClassDef) -> bool:
-    return class_node.name.startswith("Test") and not any(
-        isinstance(member, (ast.FunctionDef, ast.AsyncFunctionDef)) and member.name == "__init__"
+    if not class_node.name.startswith("Test"):
+        return False
+    if any(
+        isinstance(member, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and member.name in {"__init__", "__new__"}
         for member in class_node.body
-    )
+    ):
+        return False
+    return not _has_pytest_opt_out(class_node)
+
+
+def _has_pytest_opt_out(class_node: ast.ClassDef) -> bool:
+    for member in class_node.body:
+        if not isinstance(member, ast.Assign):
+            continue
+        if len(member.targets) != 1 or not isinstance(member.targets[0], ast.Name):
+            continue
+        if member.targets[0].id != "__test__":
+            continue
+        return _is_false_constant(member.value)
+    return False
+
+
+def _is_false_constant(node: ast.expr) -> bool:
+    return isinstance(node, ast.Constant) and node.value is False

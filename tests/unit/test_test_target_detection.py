@@ -40,6 +40,28 @@ class TestExample:
     ]
 
 
+def test_excludes_pytest_classes_with___new___or___test___false() -> None:
+    module = ModuleContext.from_source(
+        Path("tests/test_pytest_class_opt_outs.py"),
+        """
+class TestWithNew:
+    def __new__(cls):
+        return super().__new__(cls)
+
+    def test_example(self):
+        pass
+
+class TestOptOut:
+    __test__ = False
+
+    def test_example(self):
+        pass
+""".strip(),
+    )
+
+    assert _summarize(module) == []
+
+
 def test_detects_unittest_targets_from_direct_and_indirect_inheritance() -> None:
     module = ModuleContext.from_source(
         Path("tests/test_unittest_targets.py"),
