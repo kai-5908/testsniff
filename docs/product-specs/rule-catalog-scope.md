@@ -48,7 +48,7 @@ The project uses `rule-based` to mean:
 
 | Smell | Rule ID | Static detection signal | Initial severity | Initial confidence | Why it is in scope |
 | --- | --- | --- | --- | --- | --- |
-| `Empty Test` | `TS001` | A test target has no executable body after removing a leading docstring; v1 currently covers `pass`-only, docstring-only, and docstring-plus-empty-body cases. | `error` | `high` | The signal is explicit, the reported location is stable, and the remediation is concrete. |
+| `Empty Test` | `TS001` | A standardized test target has no executable body after removing a leading docstring; v1 test targets are top-level `pytest`-style `test_*` functions, `test_*` methods on top-level pytest `Test*` classes, and statically resolvable `unittest.TestCase` `test_*` methods, while helpers and nested functions are excluded. | `error` | `high` | The signal is explicit, the reported location is stable, and the remediation is concrete. |
 | `Disabled / Ignored Test` | Assigned in a follow-up implementation issue | A test target is annotated with an explicit static skip or ignore mechanism that suppresses normal execution. | `warning` | `high` | The rule can be explained statically, reported at a stable decorator or test location, and gives actionable remediation. |
 
 ## Explicitly Excluded From v1.0.0

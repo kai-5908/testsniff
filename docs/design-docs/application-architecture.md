@@ -65,6 +65,7 @@ Responsible for:
 - building reusable indexes for rules
 
 The parser layer should parse each file at most once per scan.
+It should also expose reusable structural indexes, including standardized test-target classification, so rules do not reimplement discovery heuristics.
 
 ### `rules`
 
@@ -151,7 +152,7 @@ Expected fields:
 - source text
 - parsed AST
 - token stream when needed
-- helper indexes derived from the AST
+- helper indexes derived from the AST, including reusable test-target classification
 
 This is the primary input object for static rules.
 

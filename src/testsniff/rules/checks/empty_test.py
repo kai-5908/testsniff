@@ -17,9 +17,8 @@ class EmptyTestRule:
 
     def analyze(self, module: ModuleContext) -> list[Finding]:
         findings: list[Finding] = []
-        for function in module.index.functions:
-            if not function.name.startswith("test_"):
-                continue
+        for target in module.index.test_targets:
+            function = target.node
             if not _is_effectively_empty(function):
                 continue
             findings.append(
