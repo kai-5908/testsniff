@@ -45,6 +45,37 @@ EMPTY_TEST = RuleMetadata(
     ),
 )
 
+MISSING_ASSERTION = RuleMetadata(
+    rule_id="TS003",
+    headline="Test has no recognized assertion",
+    default_severity="error",
+    default_confidence="high",
+    why=(
+        "Tests without a recognized assertion signal can pass without validating behavior, "
+        "which creates false confidence in the suite."
+    ),
+    fix=(
+        "Add an explicit assertion such as `assert`, a `self.assert*` call, or an accepted "
+        "`pytest` assertion helper like `pytest.raises(...)`."
+    ),
+    example=ExampleSnippet(
+        bad=(
+            "def test_user_creation(client):\n"
+            '    client.post("/users", json={"name": "alice"})'
+        ),
+        good=(
+            "def test_user_creation(client):\n"
+            '    response = client.post("/users", json={"name": "alice"})\n'
+            "    assert response.status_code == 201"
+        ),
+    ),
+    references=(
+        "docs/product-specs/rule-catalog-scope.md",
+        "docs/exec-plans/completed/2026-03-20-ts003-missing-assertion.md",
+    ),
+)
+
 RULE_METADATA_BY_ID: dict[str, RuleMetadata] = {
     EMPTY_TEST.rule_id: EMPTY_TEST,
+    MISSING_ASSERTION.rule_id: MISSING_ASSERTION,
 }

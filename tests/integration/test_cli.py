@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -51,3 +52,41 @@ def test_cli_scan_reports_empty_unittest_method(tmp_path: Path) -> None:
 
     assert result.exit_code == 1
     assert "error[TS001][confidence=high]: Test body is empty" in result.stdout
+
+
+def test_cli_scan_reports_missing_assertion_rule(tmp_path: Path) -> None:
+    tests_dir = tmp_path / "tests"
+    tests_dir.mkdir()
+    (tests_dir / "test_example.py").write_text(
+        "def test_example(client):\n"
+        '    client.get("/users")\n'
+    )
+
+    result = runner.invoke(
+        app,
+        ["scan", str(tests_dir), "--select", "TS003"],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 1
+    assert "error[TS003][confidence=high]: Test has no recognized assertion" in result.stdout
+
+
+def test_cli_scan_renders_missing_assertion_rule_in_json(tmp_path: Path) -> None:
+    tests_dir = tmp_path / "tests"
+    tests_dir.mkdir()
+    (tests_dir / "test_example.py").write_text(
+        "def test_example(client):\n"
+        '    client.get("/users")\n'
+    )
+
+    result = runner.invoke(
+        app,
+        ["scan", str(tests_dir), "--select", "TS003", "--format", "json"],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout)
+    assert payload["findings"][0]["rule_id"] == "TS003"
+    assert payload["findings"][0]["headline"] == "Test has no recognized assertion"
