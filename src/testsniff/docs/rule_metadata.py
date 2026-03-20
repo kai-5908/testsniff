@@ -45,6 +45,37 @@ EMPTY_TEST = RuleMetadata(
     ),
 )
 
+COMMENTS_ONLY_TEST = RuleMetadata(
+    rule_id="TS002",
+    headline="Test contains only placeholder comments",
+    default_severity="error",
+    default_confidence="high",
+    why=(
+        "Tests that contain only comments or documentation can pass without executing any "
+        "verification, which hides unfinished coverage behind descriptive text."
+    ),
+    fix=(
+        "Replace placeholder comments with an executable assertion, or remove the test until "
+        "the intended behavior can be verified."
+    ),
+    example=ExampleSnippet(
+        bad=(
+            "def test_user_creation():\n"
+            '    """TODO: cover the success path."""\n'
+            "    # Assert the created user is persisted.\n"
+        ),
+        good=(
+            "def test_user_creation():\n"
+            '    user = create_user("alice")\n'
+            '    assert user.name == "alice"'
+        ),
+    ),
+    references=(
+        "docs/product-specs/rule-catalog-scope.md",
+        "docs/exec-plans/completed/2026-03-20-ts002-comments-only-test.md",
+    ),
+)
+
 MISSING_ASSERTION = RuleMetadata(
     rule_id="TS003",
     headline="Test has no recognized assertion",
@@ -77,5 +108,6 @@ MISSING_ASSERTION = RuleMetadata(
 
 RULE_METADATA_BY_ID: dict[str, RuleMetadata] = {
     EMPTY_TEST.rule_id: EMPTY_TEST,
+    COMMENTS_ONLY_TEST.rule_id: COMMENTS_ONLY_TEST,
     MISSING_ASSERTION.rule_id: MISSING_ASSERTION,
 }
