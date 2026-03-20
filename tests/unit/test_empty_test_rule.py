@@ -102,6 +102,16 @@ def test_empty_test_rule_keeps_reporting_comment_placeholders() -> None:
     assert findings[0].rule_id == "TS001"
 
 
+def test_empty_test_rule_reports_docstring_only_tests_with_signature_comments() -> None:
+    path = COMMENTS_ONLY_FIXTURES_DIR / "negative_def_line_signature_comment.py"
+    module = ModuleContext.from_source(path, load_source(path))
+
+    findings = EmptyTestRule().analyze(module)
+
+    assert len(findings) == 1
+    assert findings[0].rule_id == "TS001"
+
+
 def _analyze_fixture(filename: str) -> list[Finding]:
     path = FIXTURES_DIR / filename
     module = ModuleContext.from_source(path, load_source(path))

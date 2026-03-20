@@ -43,6 +43,18 @@ def test_comments_only_rule_ignores_docstring_only_tests() -> None:
     assert findings == []
 
 
+def test_comments_only_rule_ignores_signature_comments_on_def_line() -> None:
+    findings = _analyze_fixture("negative_def_line_signature_comment.py")
+
+    assert findings == []
+
+
+def test_comments_only_rule_ignores_signature_comments_on_multiline_signatures() -> None:
+    findings = _analyze_fixture("negative_multiline_signature_comment.py")
+
+    assert findings == []
+
+
 def test_comments_only_rule_ignores_tests_with_pass() -> None:
     findings = _analyze_fixture("negative_pass_with_comment.py")
 

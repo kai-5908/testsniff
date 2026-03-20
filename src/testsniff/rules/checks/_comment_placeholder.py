@@ -59,14 +59,16 @@ def _has_comment_token_in_body(
     comment_tokens_by_line: dict[int, tuple[TokenInfo, ...]],
 ) -> bool:
     function = target.node
-    same_line_tokens = comment_tokens_by_line.get(function.lineno, ())
+    body_start_line = _first_body_line(function)
+
+    same_line_tokens = comment_tokens_by_line.get(body_start_line, ())
     if any(_is_same_line_body_comment(token, function) for token in same_line_tokens):
         return True
 
-    if target.body_end_line <= function.lineno:
+    if target.body_end_line <= body_start_line:
         return False
 
-    start_index = bisect_left(comment_lines, function.lineno + 1)
+    start_index = bisect_left(comment_lines, body_start_line + 1)
     end_index = bisect_right(comment_lines, target.body_end_line)
     for line_number in comment_lines[start_index:end_index]:
         if any(
@@ -81,7 +83,15 @@ def _is_same_line_body_comment(
     token: TokenInfo,
     function: FunctionNode,
 ) -> bool:
+    first_statement = function.body[0]
+    statement_end_column = first_statement.end_col_offset
     line, column = token.start
-    if line != function.lineno or column <= function.col_offset:
+    if line != first_statement.lineno or statement_end_column is None:
         return False
-    return ":" in token.line[:column]
+    return column >= statement_end_column
+
+
+def _first_body_line(function: FunctionNode) -> int:
+    if not function.body:
+        return function.lineno
+    return function.body[0].lineno
