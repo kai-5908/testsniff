@@ -37,6 +37,46 @@ def test_missing_assertion_rule_reports_unittest_method_without_assertion() -> N
     assert findings[0].line == 5
 
 
+def test_missing_assertion_rule_ignores_empty_tests_owned_by_ts001() -> None:
+    findings = _analyze_fixture("negative_empty_test.py")
+
+    assert findings == []
+
+
+def test_missing_assertion_rule_reports_shadowed_pytest_module_alias() -> None:
+    findings = _analyze_fixture("positive_shadowed_pytest_module_alias.py")
+
+    assert len(findings) == 1
+    assert findings[0].rule_id == "TS003"
+
+
+def test_missing_assertion_rule_reports_shadowed_pytest_parameter() -> None:
+    findings = _analyze_fixture("positive_shadowed_pytest_parameter.py")
+
+    assert len(findings) == 1
+    assert findings[0].rule_id == "TS003"
+
+
+def test_missing_assertion_rule_reports_shadowed_direct_import_helper() -> None:
+    findings = _analyze_fixture("positive_shadowed_direct_import_local.py")
+
+    assert len(findings) == 1
+    assert findings[0].rule_id == "TS003"
+
+
+def test_missing_assertion_rule_handles_deep_expressions_without_recursion_failure() -> None:
+    expression = " + ".join(["value"] * 1200)
+    module = ModuleContext.from_source(
+        Path("tests/test_deep_expression.py"),
+        f"def test_example():\n    {expression}\n",
+    )
+
+    findings = MissingAssertionRule().analyze(module)
+
+    assert len(findings) == 1
+    assert findings[0].rule_id == "TS003"
+
+
 def test_missing_assertion_rule_ignores_bare_assertions() -> None:
     findings = _analyze_fixture("negative_assert.py")
 
