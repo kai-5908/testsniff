@@ -49,6 +49,7 @@ The project uses `rule-based` to mean:
 | Smell | Rule ID | Static detection signal | Initial severity | Initial confidence | Why it is in scope |
 | --- | --- | --- | --- | --- | --- |
 | `Empty Test` | `TS001` | A standardized test target has no executable body after removing a leading docstring; v1 test targets are top-level `pytest`-style `test_*` functions, `test_*` methods on top-level pytest `Test*` classes, and statically resolvable `unittest.TestCase` `test_*` methods, while helpers and nested functions are excluded. | `error` | `high` | The signal is explicit, the reported location is stable, and the remediation is concrete. |
+| `Missing Assertion` | `TS003` | A standardized test target has no recognized assertion signal in its executable body after excluding nested definitions; v1 recognized signals are bare `assert`, `unittest` instance calls whose method name starts with `assert` or is `fail`, and `pytest.raises(...)`, `pytest.warns(...)`, or `pytest.fail(...)` via explicit module or direct imports. | `error` | `high` | The rule remains static and explainable when limited to explicit assertion signals, and the remediation is concrete. |
 | `Disabled / Ignored Test` | Assigned in a follow-up implementation issue | A test target is annotated with an explicit static skip or ignore mechanism that suppresses normal execution. | `warning` | `high` | The rule can be explained statically, reported at a stable decorator or test location, and gives actionable remediation. |
 
 ## Explicitly Excluded From v1.0.0
@@ -56,7 +57,7 @@ The project uses `rule-based` to mean:
 | Smell or smell group | Why it is excluded |
 | --- | --- |
 | `comments-only test` | Python does not treat comments as executable body content, so this is not a distinct Python rule separate from `Empty Test`. |
-| `missing assertion` | Static-only detection would be too noisy because valid patterns such as `pytest.raises`, indirect verification, and helper-driven checks do not always use a bare `assert`. |
+| broad `missing assertion` heuristics beyond explicit assertion signals | Helper-driven checks, dynamic assertions, and framework-specific matcher ecosystems require project-specific or semantic inference that version 1 still excludes. |
 | `Magic Number Test` | Literal values in tests are often intentional test data, so the default remediation would be too context-dependent for a precise version 1 rule. |
 | `Long Test` | The smell depends on project-specific thresholds and would start as a threshold-driven structural rule, which the current v1.0.0 catalog avoids. |
 | runtime-observed smells such as flaky, slow, or order-dependent tests | They require execution or historical evidence and fall outside the static-only boundary. |
