@@ -55,15 +55,7 @@ def run_scan(request: ScanRequest, cwd: Path | None = None) -> ScanResult:
 
         files_scanned += 1
         for rule in rules:
-            try:
-                findings.extend(rule.analyze(module))
-            except RecursionError as exc:
-                parse_failures.append(
-                    ParseFailure(
-                        path=str(path),
-                        message=f"{rule.rule_id}: recursion limit exceeded during analysis ({exc})",
-                    )
-                )
+            findings.extend(rule.analyze(module))
 
     filtered_findings = _filter_findings(sort_findings(findings), config)
     elapsed_ms = (perf_counter() - started_at) * 1000

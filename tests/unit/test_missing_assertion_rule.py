@@ -64,6 +64,80 @@ def test_missing_assertion_rule_reports_shadowed_direct_import_helper() -> None:
     assert findings[0].rule_id == "TS003"
 
 
+def test_missing_assertion_rule_reports_with_binder_shadowing() -> None:
+    findings = _analyze_source(
+        """
+from pytest import raises
+
+class Dummy:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    def __call__(self, *args, **kwargs):
+        return None
+
+def test_example():
+    with Dummy() as raises:
+        raises(ValueError)
+""".strip()
+    )
+
+    assert len(findings) == 1
+    assert findings[0].rule_id == "TS003"
+
+
+def test_missing_assertion_rule_reports_for_binder_shadowing() -> None:
+    findings = _analyze_source(
+        """
+from pytest import raises
+
+def helper(*args, **kwargs):
+    return None
+
+def test_example():
+    for raises in (helper,):
+        raises(ValueError)
+""".strip()
+    )
+
+    assert len(findings) == 1
+    assert findings[0].rule_id == "TS003"
+
+
+def test_missing_assertion_rule_reports_except_binder_shadowing() -> None:
+    findings = _analyze_source(
+        """
+from pytest import raises
+
+def test_example():
+    try:
+        raise RuntimeError("boom")
+    except RuntimeError as raises:
+        raises(ValueError)
+""".strip()
+    )
+
+    assert len(findings) == 1
+    assert findings[0].rule_id == "TS003"
+
+
+def test_missing_assertion_rule_recognizes_nested_import_before_pytest_helper_use() -> None:
+    findings = _analyze_source(
+        """
+def test_example():
+    if True:
+        from pytest import raises
+        with raises(ValueError):
+            raise ValueError("boom")
+""".strip()
+    )
+
+    assert findings == []
+
+
 def test_missing_assertion_rule_handles_deep_expressions_without_recursion_failure() -> None:
     expression = " + ".join(["value"] * 1200)
     module = ModuleContext.from_source(
@@ -107,7 +181,26 @@ def test_missing_assertion_rule_ignores_pytest_fail_calls() -> None:
     assert findings == []
 
 
+def test_missing_assertion_rule_ignores_pytest_warns_calls() -> None:
+    findings = _analyze_source(
+        """
+import pytest
+
+def test_example():
+    with pytest.warns(UserWarning):
+        raise UserWarning("boom")
+""".strip()
+    )
+
+    assert findings == []
+
+
 def _analyze_fixture(filename: str) -> list[Finding]:
     path = FIXTURES_DIR / filename
     module = ModuleContext.from_source(path, load_source(path))
+    return MissingAssertionRule().analyze(module)
+
+
+def _analyze_source(source: str) -> list[Finding]:
+    module = ModuleContext.from_source(Path("tests/test_inline_missing_assertion.py"), source)
     return MissingAssertionRule().analyze(module)

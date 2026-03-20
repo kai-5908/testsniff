@@ -112,16 +112,11 @@ def _has_recognized_assertion(target: TestTarget, pytest_aliases: _PytestAliasSe
         active_aliases.helper_names,
     )
 
-    for statement in iter_executable_body(target.node):
-        if _statement_has_recognized_assertion(
-            statement,
-            unittest_receiver_name=receiver_name if target.style == "unittest" else None,
-            pytest_aliases=active_aliases,
-        ):
-            return True
-        _apply_statement_alias_updates(statement, active_aliases)
-
-    return False
+    return _block_has_recognized_assertion(
+        iter_executable_body(target.node),
+        unittest_receiver_name=receiver_name if target.style == "unittest" else None,
+        pytest_aliases=active_aliases,
+    )
 
 
 @dataclass(slots=True)
@@ -148,48 +143,27 @@ def _collect_parameter_names(function: FunctionNode) -> set[str]:
     return names
 
 
-def _apply_statement_alias_updates(
-    statement: ast.stmt,
+def _block_has_recognized_assertion(
+    statements: tuple[ast.stmt, ...] | list[ast.stmt],
+    *,
+    unittest_receiver_name: str | None,
     pytest_aliases: _TargetPytestAliases,
-) -> None:
-    if isinstance(statement, ast.Import):
-        _discard_pytest_aliases(
-            {alias.asname or alias.name.split(".")[0] for alias in statement.names},
-            pytest_aliases.module_aliases,
-            pytest_aliases.helper_names,
-        )
-        for alias in statement.names:
-            if alias.name == "pytest":
-                pytest_aliases.module_aliases.add(alias.asname or alias.name)
-        return
+) -> bool:
+    for statement in statements:
+        if _statement_has_recognized_assertion(
+            statement,
+            unittest_receiver_name=unittest_receiver_name,
+            pytest_aliases=pytest_aliases,
+        ):
+            return True
+    return False
 
-    if isinstance(statement, ast.ImportFrom):
-        _discard_pytest_aliases(
-            {alias.asname or alias.name for alias in statement.names},
-            pytest_aliases.module_aliases,
-            pytest_aliases.helper_names,
-        )
-        if statement.module == "pytest":
-            for alias in statement.names:
-                if alias.name in _PYTEST_HELPERS:
-                    pytest_aliases.helper_names.add(alias.asname or alias.name)
-        return
 
-    if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-        _discard_pytest_aliases(
-            {statement.name},
-            pytest_aliases.module_aliases,
-            pytest_aliases.helper_names,
-        )
-        return
-
-    rebound_names = _collect_rebound_names(statement)
-    if rebound_names:
-        _discard_pytest_aliases(
-            rebound_names,
-            pytest_aliases.module_aliases,
-            pytest_aliases.helper_names,
-        )
+def _copy_pytest_aliases(pytest_aliases: _TargetPytestAliases) -> _TargetPytestAliases:
+    return _TargetPytestAliases(
+        module_aliases=set(pytest_aliases.module_aliases),
+        helper_names=set(pytest_aliases.helper_names),
+    )
 
 
 def _statement_has_recognized_assertion(
@@ -198,36 +172,280 @@ def _statement_has_recognized_assertion(
     unittest_receiver_name: str | None,
     pytest_aliases: _TargetPytestAliases,
 ) -> bool:
-    for node in _iter_statement_nodes(statement):
-        if isinstance(node, ast.Assert):
+    if isinstance(statement, ast.Assert):
+        return True
+
+    if _statement_header_has_recognized_assertion(
+        statement,
+        unittest_receiver_name=unittest_receiver_name,
+        pytest_aliases=pytest_aliases,
+    ):
+        return True
+
+    if isinstance(statement, ast.Import):
+        _apply_import_alias_updates(statement, pytest_aliases)
+        return False
+
+    if isinstance(statement, ast.ImportFrom):
+        _apply_import_from_alias_updates(statement, pytest_aliases)
+        return False
+
+    if isinstance(statement, ast.With | ast.AsyncWith):
+        body_aliases = _copy_pytest_aliases(pytest_aliases)
+        _discard_pytest_aliases(
+            _collect_with_optional_var_names(statement),
+            body_aliases.module_aliases,
+            body_aliases.helper_names,
+        )
+        if _block_has_recognized_assertion(
+            statement.body,
+            unittest_receiver_name=unittest_receiver_name,
+            pytest_aliases=body_aliases,
+        ):
             return True
-        if isinstance(node, ast.Call) and (
-            _is_unittest_assertion_call(node, unittest_receiver_name)
-            or _is_pytest_assertion_call(node, pytest_aliases)
+        _discard_pytest_aliases(
+            _collect_with_optional_var_names(statement),
+            pytest_aliases.module_aliases,
+            pytest_aliases.helper_names,
+        )
+        return False
+
+    if isinstance(statement, ast.For | ast.AsyncFor):
+        body_aliases = _copy_pytest_aliases(pytest_aliases)
+        _discard_pytest_aliases(
+            _collect_target_names(statement.target),
+            body_aliases.module_aliases,
+            body_aliases.helper_names,
+        )
+        if _block_has_recognized_assertion(
+            statement.body,
+            unittest_receiver_name=unittest_receiver_name,
+            pytest_aliases=body_aliases,
+        ):
+            return True
+        if _block_has_recognized_assertion(
+            statement.orelse,
+            unittest_receiver_name=unittest_receiver_name,
+            pytest_aliases=_copy_pytest_aliases(body_aliases),
+        ):
+            return True
+        _discard_pytest_aliases(
+            _collect_target_names(statement.target),
+            pytest_aliases.module_aliases,
+            pytest_aliases.helper_names,
+        )
+        return False
+
+    if isinstance(statement, ast.Try):
+        if _block_has_recognized_assertion(
+            statement.body,
+            unittest_receiver_name=unittest_receiver_name,
+            pytest_aliases=_copy_pytest_aliases(pytest_aliases),
+        ):
+            return True
+        if _block_has_recognized_assertion(
+            statement.orelse,
+            unittest_receiver_name=unittest_receiver_name,
+            pytest_aliases=_copy_pytest_aliases(pytest_aliases),
+        ):
+            return True
+        if _block_has_recognized_assertion(
+            statement.finalbody,
+            unittest_receiver_name=unittest_receiver_name,
+            pytest_aliases=_copy_pytest_aliases(pytest_aliases),
+        ):
+            return True
+        for handler in statement.handlers:
+            if handler.type is not None and _expression_has_recognized_assertion(
+                handler.type,
+                unittest_receiver_name=unittest_receiver_name,
+                pytest_aliases=pytest_aliases,
+            ):
+                return True
+            handler_aliases = _copy_pytest_aliases(pytest_aliases)
+            if handler.name is not None:
+                _discard_pytest_aliases(
+                    {handler.name},
+                    handler_aliases.module_aliases,
+                    handler_aliases.helper_names,
+                )
+            if _block_has_recognized_assertion(
+                handler.body,
+                unittest_receiver_name=unittest_receiver_name,
+                pytest_aliases=handler_aliases,
+            ):
+                return True
+        return False
+
+    if isinstance(statement, ast.If):
+        if _block_has_recognized_assertion(
+            statement.body,
+            unittest_receiver_name=unittest_receiver_name,
+            pytest_aliases=_copy_pytest_aliases(pytest_aliases),
+        ):
+            return True
+        return _block_has_recognized_assertion(
+            statement.orelse,
+            unittest_receiver_name=unittest_receiver_name,
+            pytest_aliases=_copy_pytest_aliases(pytest_aliases),
+        )
+
+    if isinstance(statement, ast.While):
+        if _block_has_recognized_assertion(
+            statement.body,
+            unittest_receiver_name=unittest_receiver_name,
+            pytest_aliases=_copy_pytest_aliases(pytest_aliases),
+        ):
+            return True
+        return _block_has_recognized_assertion(
+            statement.orelse,
+            unittest_receiver_name=unittest_receiver_name,
+            pytest_aliases=_copy_pytest_aliases(pytest_aliases),
+        )
+
+    if isinstance(statement, ast.Match):
+        for case in statement.cases:
+            case_aliases = _copy_pytest_aliases(pytest_aliases)
+            if case.guard is not None and _expression_has_recognized_assertion(
+                case.guard,
+                unittest_receiver_name=unittest_receiver_name,
+                pytest_aliases=pytest_aliases,
+            ):
+                return True
+            if _block_has_recognized_assertion(
+                case.body,
+                unittest_receiver_name=unittest_receiver_name,
+                pytest_aliases=case_aliases,
+            ):
+                return True
+        return False
+
+    if isinstance(statement, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
+        _discard_pytest_aliases(
+            {statement.name},
+            pytest_aliases.module_aliases,
+            pytest_aliases.helper_names,
+        )
+        return False
+
+    rebound_names = _collect_rebound_names(statement)
+    if rebound_names:
+        _discard_pytest_aliases(
+            rebound_names,
+            pytest_aliases.module_aliases,
+            pytest_aliases.helper_names,
+        )
+    return False
+
+
+def _statement_header_has_recognized_assertion(
+    statement: ast.stmt,
+    pytest_aliases: _TargetPytestAliases,
+    *,
+    unittest_receiver_name: str | None,
+) -> bool:
+    for expression in _iter_statement_header_expressions(statement):
+        if _expression_has_recognized_assertion(
+            expression,
+            unittest_receiver_name=unittest_receiver_name,
+            pytest_aliases=pytest_aliases,
         ):
             return True
     return False
 
 
-def _iter_statement_nodes(statement: ast.stmt) -> list[ast.AST]:
-    nodes: list[ast.AST] = []
-    stack: list[tuple[ast.AST, bool]] = [(statement, True)]
+def _iter_statement_header_expressions(statement: ast.stmt) -> tuple[ast.AST, ...]:
+    if isinstance(statement, ast.Expr):
+        return (statement.value,)
+    if isinstance(statement, ast.Assign):
+        return (statement.value,)
+    if isinstance(statement, ast.AnnAssign):
+        if statement.value is None:
+            return ()
+        return (statement.value,)
+    if isinstance(statement, ast.AugAssign):
+        return (statement.value,)
+    if isinstance(statement, ast.Return):
+        if statement.value is None:
+            return ()
+        return (statement.value,)
+    if isinstance(statement, ast.Raise):
+        expressions: list[ast.AST] = []
+        if statement.exc is not None:
+            expressions.append(statement.exc)
+        if statement.cause is not None:
+            expressions.append(statement.cause)
+        return tuple(expressions)
+    if isinstance(statement, ast.If | ast.While):
+        return (statement.test,)
+    if isinstance(statement, ast.For | ast.AsyncFor):
+        return (statement.iter,)
+    if isinstance(statement, ast.With | ast.AsyncWith):
+        return tuple(item.context_expr for item in statement.items)
+    if isinstance(statement, ast.Match):
+        return (statement.subject,)
+    return ()
+
+
+def _expression_has_recognized_assertion(
+    expression: ast.AST,
+    *,
+    unittest_receiver_name: str | None,
+    pytest_aliases: _TargetPytestAliases,
+) -> bool:
+    stack: list[ast.AST] = [expression]
 
     while stack:
-        node, descend = stack.pop()
-        nodes.append(node)
-        if not descend:
-            continue
-        if node is not statement and isinstance(
-            node,
-            (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda),
+        node = stack.pop()
+        if isinstance(node, ast.Call) and (
+            _is_unittest_assertion_call(node, unittest_receiver_name)
+            or _is_pytest_assertion_call(node, pytest_aliases)
         ):
+            return True
+        if isinstance(node, ast.Lambda):
             continue
         children = list(ast.iter_child_nodes(node))
         for child in reversed(children):
-            stack.append((child, True))
+            stack.append(child)
 
-    return nodes
+    return False
+
+
+def _apply_import_alias_updates(
+    statement: ast.Import,
+    pytest_aliases: _TargetPytestAliases,
+) -> None:
+    _discard_pytest_aliases(
+        {alias.asname or alias.name.split(".")[0] for alias in statement.names},
+        pytest_aliases.module_aliases,
+        pytest_aliases.helper_names,
+    )
+    for alias in statement.names:
+        if alias.name == "pytest":
+            pytest_aliases.module_aliases.add(alias.asname or alias.name)
+
+
+def _apply_import_from_alias_updates(
+    statement: ast.ImportFrom,
+    pytest_aliases: _TargetPytestAliases,
+) -> None:
+    _discard_pytest_aliases(
+        {alias.asname or alias.name for alias in statement.names},
+        pytest_aliases.module_aliases,
+        pytest_aliases.helper_names,
+    )
+    if statement.module == "pytest":
+        for alias in statement.names:
+            if alias.name in _PYTEST_HELPERS:
+                pytest_aliases.helper_names.add(alias.asname or alias.name)
+
+
+def _collect_with_optional_var_names(statement: ast.With | ast.AsyncWith) -> set[str]:
+    names: set[str] = set()
+    for item in statement.items:
+        if item.optional_vars is not None:
+            names.update(_collect_target_names(item.optional_vars))
+    return names
 
 
 def _discard_pytest_aliases(
