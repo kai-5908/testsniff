@@ -4,9 +4,13 @@ from typing import cast
 
 from testsniff.config.types import ScanConfig
 from testsniff.rules.base import Rule
+from testsniff.rules.checks.comments_only_test import CommentsOnlyTestRule
 from testsniff.rules.checks.empty_test import EmptyTestRule
 
-AVAILABLE_RULES: tuple[Rule, ...] = (cast(Rule, EmptyTestRule()),)
+AVAILABLE_RULES: tuple[Rule, ...] = (
+    cast(Rule, EmptyTestRule()),
+    cast(Rule, CommentsOnlyTestRule()),
+)
 
 
 def get_enabled_rules(config: ScanConfig) -> tuple[Rule, ...]:

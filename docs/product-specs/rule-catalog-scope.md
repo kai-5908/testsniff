@@ -48,14 +48,15 @@ The project uses `rule-based` to mean:
 
 | Smell | Rule ID | Static detection signal | Initial severity | Initial confidence | Why it is in scope |
 | --- | --- | --- | --- | --- | --- |
-| `Empty Test` | `TS001` | A standardized test target has no executable body after removing a leading docstring; v1 test targets are top-level `pytest`-style `test_*` functions, `test_*` methods on top-level pytest `Test*` classes, and statically resolvable `unittest.TestCase` `test_*` methods, while helpers and nested functions are excluded. | `error` | `high` | The signal is explicit, the reported location is stable, and the remediation is concrete. |
+| `Empty Test` | `TS001` | A standardized test target has no executable body after removing a leading docstring and is not a comment-accompanied placeholder covered by `TS002`; v1 test targets are top-level `pytest`-style `test_*` functions, `test_*` methods on top-level pytest `Test*` classes, and statically resolvable `unittest.TestCase` `test_*` methods, while helpers and nested functions are excluded. | `error` | `high` | The signal is explicit, the reported location is stable, and the remediation is concrete. |
+| `Comments-only Test` | `TS002` | A standardized test target has no executable body after removing a leading docstring, and the function body span contains one or more comment tokens, so the test is composed only of non-executable placeholder text. | `error` | `high` | The signal is explicit from AST plus source tokens, the reported location is stable, and the remediation is concrete. |
 | `Disabled / Ignored Test` | Assigned in a follow-up implementation issue | A test target is annotated with an explicit static skip or ignore mechanism that suppresses normal execution. | `warning` | `high` | The rule can be explained statically, reported at a stable decorator or test location, and gives actionable remediation. |
 
 ## Explicitly Excluded From v1.0.0
 
 | Smell or smell group | Why it is excluded |
 | --- | --- |
-| `comments-only test` | Python does not treat comments as executable body content, so this is not a distinct Python rule separate from `Empty Test`. |
+| syntactically pure comments-only test bodies | Python requires at least one statement in a function body, so `TS002` is defined as a comment-accompanied placeholder with no executable statements rather than an unparsable comment-only suite. |
 | `missing assertion` | Static-only detection would be too noisy because valid patterns such as `pytest.raises`, indirect verification, and helper-driven checks do not always use a bare `assert`. |
 | `Magic Number Test` | Literal values in tests are often intentional test data, so the default remediation would be too context-dependent for a precise version 1 rule. |
 | `Long Test` | The smell depends on project-specific thresholds and would start as a threshold-driven structural rule, which the current v1.0.0 catalog avoids. |

@@ -7,6 +7,10 @@ from testsniff.config.types import Confidence, Severity
 from testsniff.docs.rule_metadata import EMPTY_TEST
 from testsniff.parser.module_context import ModuleContext
 from testsniff.reporting.finding import Finding
+from testsniff.rules.checks._comment_placeholder import (
+    is_comments_only_placeholder_test,
+    strip_leading_docstring,
+)
 
 
 @dataclass(slots=True)
@@ -19,6 +23,8 @@ class EmptyTestRule:
         findings: list[Finding] = []
         for target in module.index.test_targets:
             function = target.node
+            if is_comments_only_placeholder_test(module, function):
+                continue
             if not _is_effectively_empty(function):
                 continue
             findings.append(
@@ -40,18 +46,7 @@ class EmptyTestRule:
 
 
 def _is_effectively_empty(function: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
-    body = list(function.body)
-    if _has_leading_docstring(body):
-        body = body[1:]
+    body = strip_leading_docstring(function)
     if not body:
         return True
     return len(body) == 1 and isinstance(body[0], ast.Pass)
-
-
-def _has_leading_docstring(body: list[ast.stmt]) -> bool:
-    if not body:
-        return False
-    first = body[0]
-    if not isinstance(first, ast.Expr):
-        return False
-    return isinstance(first.value, ast.Constant) and isinstance(first.value.value, str)

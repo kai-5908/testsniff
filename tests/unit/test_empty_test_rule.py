@@ -8,6 +8,7 @@ from testsniff.reporting.finding import Finding
 from testsniff.rules.checks.empty_test import EmptyTestRule
 
 FIXTURES_DIR = Path(__file__).resolve().parents[1] / "fixtures" / "empty_test"
+COMMENTS_ONLY_FIXTURES_DIR = Path(__file__).resolve().parents[1] / "fixtures" / "comments_only_test"
 
 
 def test_empty_test_rule_reports_pass_only_test() -> None:
@@ -89,6 +90,13 @@ def test_empty_test_rule_ignores_pytest_classes_opted_out_via___test__() -> None
     findings = _analyze_fixture("negative_pytest_class_opt_out.py")
 
     assert findings == []
+
+
+def test_empty_test_rule_ignores_comment_placeholders_reserved_for_ts002() -> None:
+    path = COMMENTS_ONLY_FIXTURES_DIR / "positive_docstring_with_comments.py"
+    module = ModuleContext.from_source(path, load_source(path))
+
+    assert EmptyTestRule().analyze(module) == []
 
 
 def _analyze_fixture(filename: str) -> list[Finding]:
