@@ -21,7 +21,7 @@
 
 複数タスクを並行して進める場合は、task ごとに専用の `git worktree` を作成します。
 
-新しい task を始めるときは、`main` を起点に topic branch 用の worktree を切り、その worktree 内で code / docs / plan を作業します。
+新しい task を始めるときは、`main` を起点にリポジトリ直下の `worktrees/<topic>/` へ topic branch 用の worktree を切り、その worktree 内で code / docs / plan を作業します。
 
 ### Rule 3: `main` へ直接 push しない
 

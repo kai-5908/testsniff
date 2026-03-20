@@ -39,7 +39,9 @@ This repository treats a task-specific worktree as the default workspace for:
 - planning documents
 - task-scoped documentation changes
 
-The primary checkout of `main` should remain available as the stable source branch for creating new task worktrees.
+Task worktrees should be created under `worktrees/` at the repository root, for example `worktrees/feat-empty-test-rule/`.
+
+The primary checkout of `main` should remain available at the repository root as the stable source branch for creating new task worktrees.
 
 ### Rule 4: `main` should stay releasable
 
