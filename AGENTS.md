@@ -20,7 +20,7 @@ Primary product goals:
 - Plans are first-class artifacts and live in version control.
 - Generated material belongs in `docs/generated/`.
 - Documents should prefer stable links over repeated prose.
-- Parallel task work should use task-specific `git worktree`s created from `main`.
+- Parallel task work should use task-specific `git worktree`s created from `main` under `worktrees/` at the repository root.
 
 ## Read In This Order
 
@@ -64,13 +64,13 @@ Primary product goals:
 
 1. Read this file.
 2. Read the smallest relevant index document.
-3. For non-trivial task work, create a task-specific `git worktree` from `main`.
+3. For non-trivial task work, create a task-specific `git worktree` from `main` under `worktrees/<topic>/`.
 4. If the task is non-trivial, create or update an execution plan.
 5. Make code or document changes.
 6. Update affected docs before finishing.
 
 For issue-driven implementation work:
-1. Create a task-specific `git worktree` from `main`.
+1. Create a task-specific `git worktree` from `main` under `worktrees/<topic>/`.
 2. Fetch the issue first.
 3. Use the local `issue-to-plan` skill.
 4. Create or update a Japanese execution plan under `docs/exec-plans/active/` from that worktree.
