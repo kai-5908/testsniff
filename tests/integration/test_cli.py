@@ -71,6 +71,46 @@ def test_cli_scan_reports_comments_only_test_rule(tmp_path: Path) -> None:
     assert "error[TS001][confidence=high]" not in result.stdout
 
 
+def test_cli_scan_select_ts001_keeps_empty_test_contract_for_placeholders(tmp_path: Path) -> None:
+    tests_dir = tmp_path / "tests"
+    tests_dir.mkdir()
+    (tests_dir / "test_comments_only.py").write_text(
+        "def test_example():\n"
+        "    # TODO: add an assertion.\n"
+        '    """Document the missing verification."""\n'
+        "    # Placeholder until the assertion is added.\n"
+    )
+
+    result = runner.invoke(
+        app,
+        ["scan", "--select", "TS001", str(tests_dir)],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 1
+    assert "error[TS001][confidence=high]: Test body is empty" in result.stdout
+
+
+def test_cli_scan_ignore_ts002_keeps_empty_test_contract_for_placeholders(tmp_path: Path) -> None:
+    tests_dir = tmp_path / "tests"
+    tests_dir.mkdir()
+    (tests_dir / "test_comments_only.py").write_text(
+        "def test_example():\n"
+        "    # TODO: add an assertion.\n"
+        '    """Document the missing verification."""\n'
+        "    # Placeholder until the assertion is added.\n"
+    )
+
+    result = runner.invoke(
+        app,
+        ["scan", "--ignore", "TS002", str(tests_dir)],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 1
+    assert "error[TS001][confidence=high]: Test body is empty" in result.stdout
+
+
 def test_cli_scan_json_includes_ts002_metadata(tmp_path: Path) -> None:
     tests_dir = tmp_path / "tests"
     tests_dir.mkdir()

@@ -30,6 +30,13 @@ def test_comments_only_rule_reports_unittest_method() -> None:
     assert finding.line == 5
 
 
+def test_comments_only_rule_reports_one_line_placeholder() -> None:
+    findings = _analyze_fixture("positive_one_line_docstring_with_comment.py")
+
+    assert len(findings) == 1
+    assert findings[0].rule_id == "TS002"
+
+
 def test_comments_only_rule_ignores_docstring_only_tests() -> None:
     findings = _analyze_fixture("negative_docstring_only.py")
 

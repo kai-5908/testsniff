@@ -14,6 +14,7 @@ class TestTarget:
     node: FunctionNode
     style: Literal["pytest", "unittest"]
     class_name: str | None = None
+    body_end_line: int = 0
 
 
 @dataclass(slots=True)
@@ -23,7 +24,7 @@ class ASTIndex:
     test_targets: tuple[TestTarget, ...]
 
     @classmethod
-    def from_tree(cls, tree: ast.AST) -> ASTIndex:
+    def from_tree(cls, tree: ast.AST, total_lines: int) -> ASTIndex:
         functions: list[FunctionNode] = []
         classes: list[ast.ClassDef] = []
         test_targets: list[TestTarget] = []
@@ -39,6 +40,7 @@ class ASTIndex:
                 _collect_test_targets(
                     tree,
                     testcase_class_names=testcase_class_names,
+                    total_lines=total_lines,
                 )
             )
 
@@ -187,13 +189,22 @@ def _collect_test_targets(
     tree: ast.Module,
     *,
     testcase_class_names: set[str],
+    total_lines: int,
 ) -> list[TestTarget]:
     targets: list[TestTarget] = []
+    module_next_starts = _next_statement_start_lines(tree.body, total_lines + 1)
 
-    for statement in tree.body:
+    for index, statement in enumerate(tree.body):
+        next_top_level_start = module_next_starts[index]
         if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef)):
             if _is_test_name(statement.name):
-                targets.append(TestTarget(node=statement, style="pytest"))
+                targets.append(
+                    TestTarget(
+                        node=statement,
+                        style="pytest",
+                        body_end_line=next_top_level_start - 1,
+                    )
+                )
             continue
 
         if not isinstance(statement, ast.ClassDef):
@@ -206,13 +217,39 @@ def _collect_test_targets(
         else:
             continue
 
-        for member in statement.body:
+        class_next_starts = _next_statement_start_lines(statement.body, next_top_level_start)
+        for member_index, member in enumerate(statement.body):
             if isinstance(member, (ast.FunctionDef, ast.AsyncFunctionDef)) and _is_test_name(
                 member.name
             ):
-                targets.append(TestTarget(node=member, style=style, class_name=statement.name))
+                targets.append(
+                    TestTarget(
+                        node=member,
+                        style=style,
+                        class_name=statement.name,
+                        body_end_line=class_next_starts[member_index] - 1,
+                    )
+                )
 
     return targets
+
+
+def _next_statement_start_lines(
+    statements: list[ast.stmt],
+    default_next_start: int,
+) -> list[int]:
+    starts = [_statement_start_line(statement) for statement in statements]
+    next_starts = [default_next_start] * len(statements)
+    for index in range(len(statements) - 1):
+        next_starts[index] = starts[index + 1]
+    return next_starts
+
+
+def _statement_start_line(statement: ast.stmt) -> int:
+    if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        if statement.decorator_list:
+            return min(decorator.lineno for decorator in statement.decorator_list)
+    return statement.lineno
 
 
 def _resolve_base_reference(

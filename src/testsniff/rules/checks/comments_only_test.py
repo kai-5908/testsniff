@@ -6,7 +6,7 @@ from testsniff.config.types import Confidence, Severity
 from testsniff.docs.rule_metadata import COMMENTS_ONLY_TEST
 from testsniff.parser.module_context import ModuleContext
 from testsniff.reporting.finding import Finding
-from testsniff.rules.checks._comment_placeholder import is_comments_only_placeholder_test
+from testsniff.rules.checks._comment_placeholder import collect_comments_only_placeholder_targets
 
 
 @dataclass(slots=True)
@@ -17,9 +17,10 @@ class CommentsOnlyTestRule:
 
     def analyze(self, module: ModuleContext) -> list[Finding]:
         findings: list[Finding] = []
+        placeholder_targets = collect_comments_only_placeholder_targets(module)
         for target in module.index.test_targets:
             function = target.node
-            if not is_comments_only_placeholder_test(module, function):
+            if function not in placeholder_targets:
                 continue
             findings.append(
                 Finding(

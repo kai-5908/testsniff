@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import ast
+from bisect import bisect_left, bisect_right
 from tokenize import COMMENT, TokenInfo
 
+from testsniff.parser.ast_index import TestTarget
 from testsniff.parser.module_context import ModuleContext
 
 FunctionNode = ast.FunctionDef | ast.AsyncFunctionDef
@@ -24,37 +26,62 @@ def has_leading_docstring(body: list[ast.stmt]) -> bool:
     return isinstance(first.value, ast.Constant) and isinstance(first.value.value, str)
 
 
-def is_comments_only_placeholder_test(module: ModuleContext, function: FunctionNode) -> bool:
-    return not strip_leading_docstring(function) and _has_comment_token_in_body(module, function)
+def collect_comments_only_placeholder_targets(module: ModuleContext) -> frozenset[FunctionNode]:
+    comment_tokens_by_line = _collect_comment_tokens_by_line(module.tokens)
+    if not comment_tokens_by_line:
+        return frozenset()
 
-
-def _has_comment_token_in_body(module: ModuleContext, function: FunctionNode) -> bool:
-    suite_end_line = _find_suite_end_line(module.source_text, function)
-    return any(
-        _is_comment_in_function_body(token, function, suite_end_line) for token in module.tokens
-    )
-
-
-def _find_suite_end_line(source_text: str, function: FunctionNode) -> int:
-    # Function AST spans stop at the last statement, so trailing body comments need line scanning.
-    for lineno, line in enumerate(source_text.splitlines(), start=1):
-        if lineno <= function.lineno:
+    comment_lines = tuple(sorted(comment_tokens_by_line))
+    placeholders: set[FunctionNode] = set()
+    for target in module.index.test_targets:
+        function = target.node
+        if strip_leading_docstring(function):
             continue
-        stripped = line.lstrip()
-        if not stripped:
+        if _has_comment_token_in_body(target, comment_lines, comment_tokens_by_line):
+            placeholders.add(function)
+    return frozenset(placeholders)
+
+
+def _collect_comment_tokens_by_line(
+    tokens: tuple[TokenInfo, ...],
+) -> dict[int, tuple[TokenInfo, ...]]:
+    comments_by_line: dict[int, list[TokenInfo]] = {}
+    for token in tokens:
+        if token.type != COMMENT:
             continue
-        indent = len(line) - len(stripped)
-        if indent <= function.col_offset:
-            return lineno - 1
-    return len(source_text.splitlines())
+        comments_by_line.setdefault(token.start[0], []).append(token)
+    return {line: tuple(line_tokens) for line, line_tokens in comments_by_line.items()}
 
 
-def _is_comment_in_function_body(
+def _has_comment_token_in_body(
+    target: TestTarget,
+    comment_lines: tuple[int, ...],
+    comment_tokens_by_line: dict[int, tuple[TokenInfo, ...]],
+) -> bool:
+    function = target.node
+    same_line_tokens = comment_tokens_by_line.get(function.lineno, ())
+    if any(_is_same_line_body_comment(token, function) for token in same_line_tokens):
+        return True
+
+    if target.body_end_line <= function.lineno:
+        return False
+
+    start_index = bisect_left(comment_lines, function.lineno + 1)
+    end_index = bisect_right(comment_lines, target.body_end_line)
+    for line_number in comment_lines[start_index:end_index]:
+        if any(
+            token.start[1] > function.col_offset
+            for token in comment_tokens_by_line[line_number]
+        ):
+            return True
+    return False
+
+
+def _is_same_line_body_comment(
     token: TokenInfo,
     function: FunctionNode,
-    suite_end_line: int,
 ) -> bool:
-    if token.type != COMMENT:
-        return False
     line, column = token.start
-    return function.lineno < line <= suite_end_line and column > function.col_offset
+    if line != function.lineno or column <= function.col_offset:
+        return False
+    return ":" in token.line[:column]

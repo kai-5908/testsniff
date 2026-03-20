@@ -21,5 +21,5 @@ class ModuleContext:
     def from_source(cls, path: Path, source_text: str) -> ModuleContext:
         tree = ast.parse(source_text, filename=str(path))
         tokens = collect_tokens(source_text)
-        index = ASTIndex.from_tree(tree)
+        index = ASTIndex.from_tree(tree, total_lines=len(source_text.splitlines()))
         return cls(path=path, source_text=source_text, tree=tree, tokens=tokens, index=index)

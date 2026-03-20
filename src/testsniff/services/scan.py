@@ -57,7 +57,7 @@ def run_scan(request: ScanRequest, cwd: Path | None = None) -> ScanResult:
         for rule in rules:
             findings.extend(rule.analyze(module))
 
-    filtered_findings = _filter_findings(sort_findings(findings), config)
+    filtered_findings = _filter_findings(sort_findings(_prefer_specific_rules(findings)), config)
     elapsed_ms = (perf_counter() - started_at) * 1000
     exit_code = resolve_exit_code(filtered_findings, parse_failures)
     return ScanResult(
@@ -130,6 +130,24 @@ def _filter_findings(findings: list[Finding], config: ScanConfig) -> list[Findin
         for finding in findings
         if _meets_confidence_threshold(finding.confidence, config.minimum_confidence)
         and _meets_severity_threshold(finding.severity, config.minimum_severity)
+    ]
+
+
+def _prefer_specific_rules(findings: list[Finding]) -> list[Finding]:
+    ts002_locations = {
+        (finding.path, finding.line, finding.column)
+        for finding in findings
+        if finding.rule_id == "TS002"
+    }
+    if not ts002_locations:
+        return findings
+    return [
+        finding
+        for finding in findings
+        if not (
+            finding.rule_id == "TS001"
+            and (finding.path, finding.line, finding.column) in ts002_locations
+        )
     ]
 
 

@@ -7,10 +7,7 @@ from testsniff.config.types import Confidence, Severity
 from testsniff.docs.rule_metadata import EMPTY_TEST
 from testsniff.parser.module_context import ModuleContext
 from testsniff.reporting.finding import Finding
-from testsniff.rules.checks._comment_placeholder import (
-    is_comments_only_placeholder_test,
-    strip_leading_docstring,
-)
+from testsniff.rules.checks._comment_placeholder import strip_leading_docstring
 
 
 @dataclass(slots=True)
@@ -23,8 +20,6 @@ class EmptyTestRule:
         findings: list[Finding] = []
         for target in module.index.test_targets:
             function = target.node
-            if is_comments_only_placeholder_test(module, function):
-                continue
             if not _is_effectively_empty(function):
                 continue
             findings.append(

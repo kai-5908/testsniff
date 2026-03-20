@@ -92,11 +92,14 @@ def test_empty_test_rule_ignores_pytest_classes_opted_out_via___test__() -> None
     assert findings == []
 
 
-def test_empty_test_rule_ignores_comment_placeholders_reserved_for_ts002() -> None:
+def test_empty_test_rule_keeps_reporting_comment_placeholders() -> None:
     path = COMMENTS_ONLY_FIXTURES_DIR / "positive_docstring_with_comments.py"
     module = ModuleContext.from_source(path, load_source(path))
 
-    assert EmptyTestRule().analyze(module) == []
+    findings = EmptyTestRule().analyze(module)
+
+    assert len(findings) == 1
+    assert findings[0].rule_id == "TS001"
 
 
 def _analyze_fixture(filename: str) -> list[Finding]:
