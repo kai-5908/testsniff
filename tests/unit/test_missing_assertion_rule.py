@@ -138,6 +138,75 @@ def test_example():
     assert findings == []
 
 
+def test_missing_assertion_rule_propagates_if_block_import_to_later_statement() -> None:
+    findings = _analyze_source(
+        """
+def test_example():
+    if True:
+        from pytest import raises
+    with raises(ValueError):
+        raise ValueError("boom")
+""".strip()
+    )
+
+    assert findings == []
+
+
+def test_missing_assertion_rule_propagates_with_block_import_to_later_statement() -> None:
+    findings = _analyze_source(
+        """
+class Dummy:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+def test_example():
+    with Dummy():
+        from pytest import raises
+    with raises(ValueError):
+        raise ValueError("boom")
+""".strip()
+    )
+
+    assert findings == []
+
+
+def test_missing_assertion_rule_propagates_try_body_import_to_finally() -> None:
+    findings = _analyze_source(
+        """
+def test_example():
+    try:
+        from pytest import raises
+    finally:
+        with raises(ValueError):
+            raise ValueError("boom")
+""".strip()
+    )
+
+    assert findings == []
+
+
+def test_missing_assertion_rule_reports_match_capture_shadowing() -> None:
+    findings = _analyze_source(
+        """
+from pytest import raises
+
+def helper(*args, **kwargs):
+    return None
+
+def test_example():
+    match helper:
+        case raises:
+            raises(ValueError)
+""".strip()
+    )
+
+    assert len(findings) == 1
+    assert findings[0].rule_id == "TS003"
+
+
 def test_missing_assertion_rule_handles_deep_expressions_without_recursion_failure() -> None:
     expression = " + ".join(["value"] * 1200)
     module = ModuleContext.from_source(

@@ -166,6 +166,36 @@ def _copy_pytest_aliases(pytest_aliases: _TargetPytestAliases) -> _TargetPytestA
     )
 
 
+def _overwrite_pytest_aliases(
+    target: _TargetPytestAliases,
+    source: _TargetPytestAliases,
+) -> None:
+    target.module_aliases.clear()
+    target.module_aliases.update(source.module_aliases)
+    target.helper_names.clear()
+    target.helper_names.update(source.helper_names)
+
+
+def _merge_pytest_aliases_intersection(
+    left: _TargetPytestAliases,
+    right: _TargetPytestAliases,
+) -> _TargetPytestAliases:
+    return _TargetPytestAliases(
+        module_aliases=left.module_aliases & right.module_aliases,
+        helper_names=left.helper_names & right.helper_names,
+    )
+
+
+def _merge_pytest_aliases_union(
+    left: _TargetPytestAliases,
+    right: _TargetPytestAliases,
+) -> _TargetPytestAliases:
+    return _TargetPytestAliases(
+        module_aliases=left.module_aliases | right.module_aliases,
+        helper_names=left.helper_names | right.helper_names,
+    )
+
+
 def _statement_has_recognized_assertion(
     statement: ast.stmt,
     *,
@@ -203,11 +233,7 @@ def _statement_has_recognized_assertion(
             pytest_aliases=body_aliases,
         ):
             return True
-        _discard_pytest_aliases(
-            _collect_with_optional_var_names(statement),
-            pytest_aliases.module_aliases,
-            pytest_aliases.helper_names,
-        )
+        _overwrite_pytest_aliases(pytest_aliases, body_aliases)
         return False
 
     if isinstance(statement, ast.For | ast.AsyncFor):
@@ -223,38 +249,39 @@ def _statement_has_recognized_assertion(
             pytest_aliases=body_aliases,
         ):
             return True
+        loop_aliases = _copy_pytest_aliases(body_aliases)
         if _block_has_recognized_assertion(
             statement.orelse,
             unittest_receiver_name=unittest_receiver_name,
-            pytest_aliases=_copy_pytest_aliases(body_aliases),
+            pytest_aliases=loop_aliases,
         ):
             return True
-        _discard_pytest_aliases(
-            _collect_target_names(statement.target),
-            pytest_aliases.module_aliases,
-            pytest_aliases.helper_names,
-        )
+        _overwrite_pytest_aliases(pytest_aliases, loop_aliases)
         return False
 
     if isinstance(statement, ast.Try):
+        body_aliases = _copy_pytest_aliases(pytest_aliases)
         if _block_has_recognized_assertion(
             statement.body,
             unittest_receiver_name=unittest_receiver_name,
-            pytest_aliases=_copy_pytest_aliases(pytest_aliases),
+            pytest_aliases=body_aliases,
         ):
             return True
+        orelse_aliases = _copy_pytest_aliases(body_aliases)
         if _block_has_recognized_assertion(
             statement.orelse,
             unittest_receiver_name=unittest_receiver_name,
-            pytest_aliases=_copy_pytest_aliases(pytest_aliases),
+            pytest_aliases=orelse_aliases,
         ):
             return True
+        finally_start_aliases = _merge_pytest_aliases_union(body_aliases, orelse_aliases)
         if _block_has_recognized_assertion(
             statement.finalbody,
             unittest_receiver_name=unittest_receiver_name,
-            pytest_aliases=_copy_pytest_aliases(pytest_aliases),
+            pytest_aliases=finally_start_aliases,
         ):
             return True
+        handler_aliases_to_merge: list[_TargetPytestAliases] = []
         for handler in statement.handlers:
             if handler.type is not None and _expression_has_recognized_assertion(
                 handler.type,
@@ -272,44 +299,81 @@ def _statement_has_recognized_assertion(
             if _block_has_recognized_assertion(
                 handler.body,
                 unittest_receiver_name=unittest_receiver_name,
-                pytest_aliases=handler_aliases,
+                    pytest_aliases=handler_aliases,
             ):
                 return True
+            handler_aliases_to_merge.append(handler_aliases)
+        for handler_aliases in handler_aliases_to_merge:
+            finally_start_aliases = _merge_pytest_aliases_union(
+                finally_start_aliases,
+                handler_aliases,
+            )
+        _overwrite_pytest_aliases(pytest_aliases, finally_start_aliases)
         return False
 
     if isinstance(statement, ast.If):
+        body_aliases = _copy_pytest_aliases(pytest_aliases)
         if _block_has_recognized_assertion(
             statement.body,
             unittest_receiver_name=unittest_receiver_name,
-            pytest_aliases=_copy_pytest_aliases(pytest_aliases),
+            pytest_aliases=body_aliases,
         ):
             return True
-        return _block_has_recognized_assertion(
+        else_aliases = _copy_pytest_aliases(pytest_aliases)
+        if _block_has_recognized_assertion(
             statement.orelse,
             unittest_receiver_name=unittest_receiver_name,
-            pytest_aliases=_copy_pytest_aliases(pytest_aliases),
-        )
+            pytest_aliases=else_aliases,
+        ):
+            return True
+        if _is_static_truthy(statement.test):
+            _overwrite_pytest_aliases(pytest_aliases, body_aliases)
+        elif _is_static_falsy(statement.test):
+            _overwrite_pytest_aliases(pytest_aliases, else_aliases)
+        else:
+            _overwrite_pytest_aliases(
+                pytest_aliases,
+                _merge_pytest_aliases_intersection(body_aliases, else_aliases),
+            )
+        return False
 
     if isinstance(statement, ast.While):
+        body_aliases = _copy_pytest_aliases(pytest_aliases)
         if _block_has_recognized_assertion(
             statement.body,
             unittest_receiver_name=unittest_receiver_name,
-            pytest_aliases=_copy_pytest_aliases(pytest_aliases),
+            pytest_aliases=body_aliases,
         ):
             return True
-        return _block_has_recognized_assertion(
+        else_aliases = _copy_pytest_aliases(pytest_aliases)
+        if _block_has_recognized_assertion(
             statement.orelse,
             unittest_receiver_name=unittest_receiver_name,
-            pytest_aliases=_copy_pytest_aliases(pytest_aliases),
-        )
+            pytest_aliases=else_aliases,
+        ):
+            return True
+        if _is_static_falsy(statement.test):
+            _overwrite_pytest_aliases(pytest_aliases, else_aliases)
+        else:
+            _overwrite_pytest_aliases(
+                pytest_aliases,
+                _merge_pytest_aliases_intersection(body_aliases, else_aliases),
+            )
+        return False
 
     if isinstance(statement, ast.Match):
+        case_end_aliases: list[_TargetPytestAliases] = []
         for case in statement.cases:
             case_aliases = _copy_pytest_aliases(pytest_aliases)
+            _discard_pytest_aliases(
+                _collect_pattern_capture_names(case.pattern),
+                case_aliases.module_aliases,
+                case_aliases.helper_names,
+            )
             if case.guard is not None and _expression_has_recognized_assertion(
                 case.guard,
                 unittest_receiver_name=unittest_receiver_name,
-                pytest_aliases=pytest_aliases,
+                pytest_aliases=case_aliases,
             ):
                 return True
             if _block_has_recognized_assertion(
@@ -318,6 +382,15 @@ def _statement_has_recognized_assertion(
                 pytest_aliases=case_aliases,
             ):
                 return True
+            case_end_aliases.append(case_aliases)
+        if case_end_aliases:
+            merged_aliases = case_end_aliases[0]
+            for case_aliases in case_end_aliases[1:]:
+                merged_aliases = _merge_pytest_aliases_intersection(
+                    merged_aliases,
+                    case_aliases,
+                )
+            _overwrite_pytest_aliases(pytest_aliases, merged_aliases)
         return False
 
     if isinstance(statement, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
@@ -446,6 +519,49 @@ def _collect_with_optional_var_names(statement: ast.With | ast.AsyncWith) -> set
         if item.optional_vars is not None:
             names.update(_collect_target_names(item.optional_vars))
     return names
+
+
+def _collect_pattern_capture_names(pattern: ast.pattern) -> set[str]:
+    if isinstance(pattern, ast.MatchAs):
+        names = {pattern.name} if pattern.name is not None else set()
+        if pattern.pattern is not None:
+            names.update(_collect_pattern_capture_names(pattern.pattern))
+        return names
+    if isinstance(pattern, ast.MatchStar):
+        return {pattern.name} if pattern.name is not None else set()
+    if isinstance(pattern, ast.MatchMapping):
+        names: set[str] = set()
+        for child in pattern.patterns:
+            names.update(_collect_pattern_capture_names(child))
+        if pattern.rest is not None:
+            names.add(pattern.rest)
+        return names
+    if isinstance(pattern, ast.MatchSequence):
+        names: set[str] = set()
+        for child in pattern.patterns:
+            names.update(_collect_pattern_capture_names(child))
+        return names
+    if isinstance(pattern, ast.MatchClass):
+        names: set[str] = set()
+        for child in pattern.patterns:
+            names.update(_collect_pattern_capture_names(child))
+        for child in pattern.kwd_patterns:
+            names.update(_collect_pattern_capture_names(child))
+        return names
+    if isinstance(pattern, ast.MatchOr):
+        names: set[str] = set()
+        for child in pattern.patterns:
+            names.update(_collect_pattern_capture_names(child))
+        return names
+    return set()
+
+
+def _is_static_truthy(expression: ast.AST) -> bool:
+    return isinstance(expression, ast.Constant) and bool(expression.value) is True
+
+
+def _is_static_falsy(expression: ast.AST) -> bool:
+    return isinstance(expression, ast.Constant) and bool(expression.value) is False
 
 
 def _discard_pytest_aliases(
