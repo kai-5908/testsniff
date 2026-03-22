@@ -195,6 +195,26 @@ def test_example(value):
     assert findings == []
 
 
+def test_duplicate_assert_rule_ignores_unreachable_assert_after_terminating_try_finally() -> None:
+    findings = _analyze_source(
+        """
+def test_example(value, flag):
+    try:
+        if flag:
+            assert value == 1
+            return
+        else:
+            assert value == 1
+            return
+    finally:
+        pass
+    assert value == 1
+""".strip()
+    )
+
+    assert findings == []
+
+
 def _analyze_fixture(filename: str) -> list[Finding]:
     path = FIXTURES_DIR / filename
     module = ModuleContext.from_source(path, load_source(path))

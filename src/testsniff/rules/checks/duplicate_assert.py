@@ -463,12 +463,10 @@ def _statement_can_fall_through(statement: ast.stmt) -> bool:
 
     if isinstance(statement, ast.Try):
         if statement.finalbody:
-            return _block_can_fall_through(statement.finalbody)
-        normal_flow = _block_can_fall_through(statement.body) and _block_can_fall_through(
-            statement.orelse
-        )
-        handler_flow = any(_block_can_fall_through(handler.body) for handler in statement.handlers)
-        return normal_flow or handler_flow
+            return _try_pre_finally_can_fall_through(statement) and _block_can_fall_through(
+                statement.finalbody
+            )
+        return _try_pre_finally_can_fall_through(statement)
 
     return not isinstance(statement, (ast.Raise, ast.Return, ast.Break, ast.Continue))
 
@@ -478,6 +476,14 @@ def _block_can_fall_through(statements: tuple[ast.stmt, ...] | list[ast.stmt]) -
         if not _statement_can_fall_through(statement):
             return False
     return True
+
+
+def _try_pre_finally_can_fall_through(statement: ast.Try) -> bool:
+    normal_flow = _block_can_fall_through(statement.body) and _block_can_fall_through(
+        statement.orelse
+    )
+    handler_flow = any(_block_can_fall_through(handler.body) for handler in statement.handlers)
+    return normal_flow or handler_flow
 
 
 def _collect_try_handler_entry_seen(
