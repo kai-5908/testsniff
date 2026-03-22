@@ -106,8 +106,71 @@ MISSING_ASSERTION = RuleMetadata(
     ),
 )
 
+DISABLED_IGNORED_TEST = RuleMetadata(
+    rule_id="TS004",
+    headline="Test is disabled or ignored",
+    default_severity="warning",
+    default_confidence="high",
+    why=(
+        "Disabled tests reduce suite observability and can hide unverified behavior behind "
+        "code that no longer runs in normal test execution."
+    ),
+    fix=(
+        "Re-enable the test, narrow the skip to the few cases that truly require it, or "
+        "remove the test until it can run normally."
+    ),
+    example=ExampleSnippet(
+        bad=(
+            "import pytest\n\n"
+            '@pytest.mark.skip(reason="temporarily disabled")\n'
+            "def test_user_creation():\n"
+            "    assert create_user(\"alice\").name == \"alice\""
+        ),
+        good=(
+            "import pytest\n\n"
+            "def test_user_creation():\n"
+            "    assert create_user(\"alice\").name == \"alice\""
+        ),
+    ),
+    references=(
+        "docs/product-specs/rule-catalog-scope.md",
+        "docs/exec-plans/completed/2026-03-22-ts004-disabled-ignored-test.md",
+    ),
+)
+
+DUPLICATE_ASSERT = RuleMetadata(
+    rule_id="TS005",
+    headline="Test contains duplicated assertion",
+    default_severity="error",
+    default_confidence="high",
+    why=(
+        "Duplicated assertions add noise without increasing coverage, which makes tests harder "
+        "to read and maintain."
+    ),
+    fix=(
+        "Remove the repeated assertion or consolidate the repeated check into one clear "
+        "verification per expectation."
+    ),
+    example=ExampleSnippet(
+        bad=(
+            "def test_user_creation(response):\n"
+            '    assert response.status_code == 201\n'
+            '    assert response.status_code == 201'
+        ),
+        good=(
+            "def test_user_creation(response):\n"
+            "    assert response.status_code == 201"
+        ),
+    ),
+    references=(
+        "docs/product-specs/rule-catalog-scope.md",
+        "docs/exec-plans/completed/2026-03-22-ts005-duplicate-assert.md",
+    ),
+)
 RULE_METADATA_BY_ID: dict[str, RuleMetadata] = {
     EMPTY_TEST.rule_id: EMPTY_TEST,
     COMMENTS_ONLY_TEST.rule_id: COMMENTS_ONLY_TEST,
     MISSING_ASSERTION.rule_id: MISSING_ASSERTION,
+    DISABLED_IGNORED_TEST.rule_id: DISABLED_IGNORED_TEST,
+    DUPLICATE_ASSERT.rule_id: DUPLICATE_ASSERT,
 }
