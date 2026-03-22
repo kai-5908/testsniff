@@ -203,6 +203,7 @@ def _collect_findings_from_block(
             continue
 
         if isinstance(statement, ast.If):
+            _discard_aliases(_collect_named_expr_names(statement.test), alias_state)
             body_aliases = _copy_alias_state(alias_state)
             _collect_findings_from_block(
                 statement.body,
@@ -235,6 +236,7 @@ def _collect_findings_from_block(
             continue
 
         if isinstance(statement, ast.While):
+            _discard_aliases(_collect_named_expr_names(statement.test), alias_state)
             body_aliases = _copy_alias_state(alias_state)
             _collect_findings_from_block(
                 statement.body,
@@ -271,10 +273,13 @@ def _collect_findings_from_block(
             continue
 
         if isinstance(statement, ast.Match):
+            _discard_aliases(_collect_named_expr_names(statement.subject), alias_state)
             merged_aliases = _copy_alias_state(alias_state)
             for case in statement.cases:
                 case_aliases = _copy_alias_state(alias_state)
                 _discard_aliases(_collect_pattern_capture_names(case.pattern), case_aliases)
+                if case.guard is not None:
+                    _discard_aliases(_collect_named_expr_names(case.guard), case_aliases)
                 _collect_findings_from_block(
                     case.body,
                     module_path=module_path,
@@ -368,9 +373,9 @@ def _decorator_disables_target(
     if kind == "skip":
         return True
     if kind in {"pytest_skipif", "skipIf"}:
-        return not _first_argument_is_static_bool(decorator, value=False)
+        return _decorator_condition_disables_target(decorator, disabled_when=True)
     if kind == "skipUnless":
-        return not _first_argument_is_static_bool(decorator, value=True)
+        return _decorator_condition_disables_target(decorator, disabled_when=False)
     return False
 
 
@@ -401,10 +406,34 @@ def _resolve_decorator_kind(
     return None
 
 
-def _first_argument_is_static_bool(decorator: ast.expr, *, value: bool) -> bool:
-    if not isinstance(decorator, ast.Call) or not decorator.args:
-        return False
-    return isinstance(decorator.args[0], ast.Constant) and decorator.args[0].value is value
+def _decorator_condition_disables_target(
+    decorator: ast.expr,
+    *,
+    disabled_when: bool,
+) -> bool:
+    condition_truthiness = _resolve_static_condition_truthiness(decorator)
+    if condition_truthiness is None:
+        return True
+    return condition_truthiness is disabled_when
+
+
+def _resolve_static_condition_truthiness(decorator: ast.expr) -> bool | None:
+    if not isinstance(decorator, ast.Call):
+        return None
+
+    if decorator.args:
+        return _static_truthiness(decorator.args[0])
+
+    for keyword in decorator.keywords:
+        if keyword.arg == "condition":
+            return _static_truthiness(keyword.value)
+    return None
+
+
+def _static_truthiness(expression: ast.expr) -> bool | None:
+    if not isinstance(expression, ast.Constant):
+        return None
+    return bool(expression.value)
 
 
 def _new_alias_state() -> _DecoratorAliasState:

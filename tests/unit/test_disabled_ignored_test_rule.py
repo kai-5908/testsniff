@@ -110,6 +110,48 @@ def test_example():
     assert findings == []
 
 
+def test_disabled_ignored_rule_ignores_pytest_skipif_with_static_falsy_constant() -> None:
+    findings = _analyze_source(
+        """
+import pytest
+
+@pytest.mark.skipif(0, reason="temporarily disabled")
+def test_example():
+    assert True
+""".strip()
+    )
+
+    assert findings == []
+
+
+def test_disabled_ignored_rule_ignores_pytest_skipif_with_static_none_condition() -> None:
+    findings = _analyze_source(
+        """
+import pytest
+
+@pytest.mark.skipif(None, reason="temporarily disabled")
+def test_example():
+    assert True
+""".strip()
+    )
+
+    assert findings == []
+
+
+def test_disabled_ignored_rule_ignores_pytest_skipif_with_condition_keyword() -> None:
+    findings = _analyze_source(
+        """
+import pytest
+
+@pytest.mark.skipif(condition="", reason="temporarily disabled")
+def test_example():
+    assert True
+""".strip()
+    )
+
+    assert findings == []
+
+
 def test_disabled_ignored_rule_ignores_unittest_skipif_with_static_false_condition() -> None:
     findings = _analyze_source(
         """
@@ -117,6 +159,36 @@ import unittest
 
 class TestExample(unittest.TestCase):
     @unittest.skipIf(False, "temporarily disabled")
+    def test_example(self):
+        self.assertTrue(True)
+""".strip()
+    )
+
+    assert findings == []
+
+
+def test_disabled_ignored_rule_ignores_unittest_skipif_with_static_falsy_constant() -> None:
+    findings = _analyze_source(
+        """
+import unittest
+
+class TestExample(unittest.TestCase):
+    @unittest.skipIf(0, "temporarily disabled")
+    def test_example(self):
+        self.assertTrue(True)
+""".strip()
+    )
+
+    assert findings == []
+
+
+def test_disabled_ignored_rule_ignores_unittest_skipif_with_condition_keyword() -> None:
+    findings = _analyze_source(
+        """
+import unittest
+
+class TestExample(unittest.TestCase):
+    @unittest.skipIf(condition=False, reason="temporarily disabled")
     def test_example(self):
         self.assertTrue(True)
 """.strip()
@@ -138,6 +210,37 @@ class TestExample(unittest.TestCase):
     )
 
     assert findings == []
+
+
+def test_disabled_ignored_rule_ignores_unittest_skipunless_with_static_truthy_constant() -> None:
+    findings = _analyze_source(
+        """
+import unittest
+
+class TestExample(unittest.TestCase):
+    @unittest.skipUnless(1, "temporarily disabled")
+    def test_example(self):
+        self.assertTrue(True)
+""".strip()
+    )
+
+    assert findings == []
+
+
+def test_disabled_ignored_rule_ignores_unittest_skipunless_with_condition_keyword() -> None:
+    findings = _analyze_source(
+        """
+import unittest
+
+class TestExample(unittest.TestCase):
+    @unittest.skipUnless(condition=True, reason="temporarily disabled")
+    def test_example(self):
+        self.assertTrue(True)
+""".strip()
+    )
+
+    assert findings == []
+
 
 
 def test_disabled_ignored_rule_ignores_unrelated_decorators() -> None:
@@ -204,6 +307,23 @@ def test_example():
     assert findings == []
 
 
+def test_disabled_ignored_rule_drops_alias_from_if_condition_named_expression() -> None:
+    findings = _analyze_source(
+        """
+import pytest
+
+if (pytest := object()):
+    pass
+
+@pytest.mark.skip(reason="temporarily disabled")
+def test_example():
+    assert True
+""".strip()
+    )
+
+    assert findings == []
+
+
 def test_disabled_ignored_rule_drops_shadowed_alias_from_try_block() -> None:
     findings = _analyze_source(
         """
@@ -226,6 +346,23 @@ def test_example():
     assert findings == []
 
 
+def test_disabled_ignored_rule_drops_alias_from_while_condition_named_expression() -> None:
+    findings = _analyze_source(
+        """
+import pytest
+
+while (pytest := None):
+    pass
+
+@pytest.mark.skip(reason="temporarily disabled")
+def test_example():
+    assert True
+""".strip()
+    )
+
+    assert findings == []
+
+
 def test_disabled_ignored_rule_drops_shadowed_alias_from_match_capture() -> None:
     findings = _analyze_source(
         """
@@ -233,6 +370,24 @@ import pytest
 
 match object():
     case pytest:
+        pass
+
+@pytest.mark.skip(reason="temporarily disabled")
+def test_example():
+    assert True
+""".strip()
+    )
+
+    assert findings == []
+
+
+def test_disabled_ignored_rule_drops_alias_from_match_subject_named_expression() -> None:
+    findings = _analyze_source(
+        """
+import pytest
+
+match (pytest := object()):
+    case _:
         pass
 
 @pytest.mark.skip(reason="temporarily disabled")
