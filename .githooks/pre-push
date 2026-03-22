@@ -20,4 +20,18 @@ fi
 echo "pre-push: validating branch before push to ${remote_name:-<unknown>} ${remote_url:-}"
 uv run ruff check src tests
 uv run ty check src
-uv run pytest -q
+
+pytest_log="$(mktemp)"
+if ! uv run pytest -q --cov=testsniff --cov-report=term-missing --cov-fail-under=100 >"$pytest_log" 2>&1; then
+  cat "$pytest_log" >&2
+  if grep -q "Required test coverage of 100% not reached" "$pytest_log"; then
+    echo "pre-push: coverage must reach 100% before push." >&2
+    echo "pre-push: do not add superficial tests only to raise the percentage." >&2
+    echo "pre-push: understand the domain, user flows, and failure modes, then add tests that verify meaningful behavior." >&2
+  fi
+  rm -f "$pytest_log"
+  exit 1
+fi
+
+cat "$pytest_log"
+rm -f "$pytest_log"

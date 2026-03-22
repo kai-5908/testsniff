@@ -93,7 +93,7 @@ Before creating a release tag, the maintainer should confirm:
 - `CHANGELOG.md` contains an entry for the target version
 - user-facing docs are in sync with behavior
 - `uv run ruff check src tests` passes
-- `uv run pytest -q` passes
+- `uv run pytest -q --cov=testsniff --cov-report=term-missing --cov-fail-under=100` passes
 - `uv build` succeeds
 
 ## Post-Release Expectations

@@ -177,8 +177,16 @@ tests/test_example.py:1:1: error[high] TS001 Test body is empty
 Run the local checks:
 
 ```bash
-uv run pytest
+uv run pytest -q
 uv run ruff check .
+```
+
+Focused local runs can use plain `uv run pytest -q <target>`.
+
+Run the shared full-suite coverage gate with:
+
+```bash
+uv run pytest -q --cov=testsniff --cov-report=term-missing --cov-fail-under=100
 ```
 
 ## Scope Notes
