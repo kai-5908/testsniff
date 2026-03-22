@@ -102,6 +102,142 @@ def test_disabled_ignored_rule_ignores_unrelated_decorators() -> None:
     assert findings == []
 
 
+def test_disabled_ignored_rule_recognizes_imports_from_static_truthy_if_block() -> None:
+    findings = _analyze_source(
+        """
+if True:
+    import pytest as pt
+
+@pt.mark.skip(reason="temporarily disabled")
+def test_example():
+    assert True
+""".strip()
+    )
+
+    assert len(findings) == 1
+    assert findings[0].rule_id == "TS004"
+
+
+def test_disabled_ignored_rule_drops_shadowed_alias_from_static_truthy_if_block() -> None:
+    findings = _analyze_source(
+        """
+import pytest
+
+def helper():
+    return None
+
+if True:
+    pytest = helper
+
+@pytest.mark.skip(reason="temporarily disabled")
+def test_example():
+    assert True
+""".strip()
+    )
+
+    assert findings == []
+
+
+def test_disabled_ignored_rule_drops_shadowed_alias_from_unknown_if_branch() -> None:
+    findings = _analyze_source(
+        """
+import pytest
+
+flag = object()
+
+def helper():
+    return None
+
+if flag:
+    pytest = helper
+
+@pytest.mark.skip(reason="temporarily disabled")
+def test_example():
+    assert True
+""".strip()
+    )
+
+    assert findings == []
+
+
+def test_disabled_ignored_rule_drops_shadowed_alias_from_try_block() -> None:
+    findings = _analyze_source(
+        """
+import pytest
+
+def helper():
+    return None
+
+try:
+    pytest = helper
+finally:
+    pass
+
+@pytest.mark.skip(reason="temporarily disabled")
+def test_example():
+    assert True
+""".strip()
+    )
+
+    assert findings == []
+
+
+def test_disabled_ignored_rule_drops_shadowed_alias_from_match_capture() -> None:
+    findings = _analyze_source(
+        """
+import pytest
+
+match object():
+    case pytest:
+        pass
+
+@pytest.mark.skip(reason="temporarily disabled")
+def test_example():
+    assert True
+""".strip()
+    )
+
+    assert findings == []
+
+
+def test_disabled_ignored_rule_keeps_duplicate_test_class_names_distinct() -> None:
+    findings = _analyze_source(
+        """
+import pytest
+
+@pytest.mark.skip(reason="temporarily disabled")
+class TestExample:
+    def test_first(self):
+        assert True
+
+class TestExample:
+    def test_second(self):
+        assert True
+""".strip()
+    )
+
+    assert len(findings) == 1
+    assert findings[0].line == 5
+
+
+def test_disabled_ignored_rule_handles_many_unique_import_aliases() -> None:
+    import_lines = [f"import unittest as u{index}" for index in range(2000)]
+    source = "\n".join(
+        [
+            *import_lines,
+            "",
+            "@u1999.skipIf(True, 'temporarily disabled')",
+            "def test_example():",
+            "    assert True",
+        ]
+    )
+
+    findings = _analyze_source(source)
+
+    assert len(findings) == 1
+    assert findings[0].rule_id == "TS004"
+
+
 def _analyze_fixture(filename: str) -> list[Finding]:
     path = FIXTURES_DIR / filename
     module = ModuleContext.from_source(path, load_source(path))

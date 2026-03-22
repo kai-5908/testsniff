@@ -14,6 +14,7 @@ class TestTarget:
     node: FunctionNode
     style: Literal["pytest", "unittest"]
     class_name: str | None = None
+    class_node: ast.ClassDef | None = None
     body_end_line: int = 0
 
 
@@ -227,6 +228,7 @@ def _collect_test_targets(
                         node=member,
                         style=style,
                         class_name=statement.name,
+                        class_node=statement,
                         body_end_line=class_next_starts[member_index] - 1,
                     )
                 )
