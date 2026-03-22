@@ -173,6 +173,55 @@ def test_cli_scan_renders_missing_assertion_rule_in_json(tmp_path: Path) -> None
     assert payload["findings"][0]["headline"] == "Test has no recognized assertion"
 
 
+def test_cli_scan_reports_disabled_ignored_rule(tmp_path: Path) -> None:
+    tests_dir = tmp_path / "tests"
+    tests_dir.mkdir()
+    (tests_dir / "test_example.py").write_text(
+        "import pytest\n\n"
+        '@pytest.mark.skip(reason="temporarily disabled")\n'
+        "def test_example():\n"
+        "    assert True\n"
+    )
+
+    result = runner.invoke(
+        app,
+        ["scan", str(tests_dir), "--select", "TS004"],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 1
+    assert "warning[TS004][confidence=high]: Test is disabled or ignored" in result.stdout
+
+
+def test_cli_scan_renders_disabled_ignored_rule_in_json(tmp_path: Path) -> None:
+    tests_dir = tmp_path / "tests"
+    tests_dir.mkdir()
+    (tests_dir / "test_example.py").write_text(
+        "import pytest\n\n"
+        '@pytest.mark.skip(reason="temporarily disabled")\n'
+        "class TestExample:\n"
+        "    def test_one(self):\n"
+        "        assert True\n\n"
+        "    def test_two(self):\n"
+        "        assert True\n"
+    )
+
+    result = runner.invoke(
+        app,
+        ["scan", str(tests_dir), "--select", "TS004", "--format", "json"],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout)
+    assert [finding["rule_id"] for finding in payload["findings"]] == ["TS004", "TS004"]
+    assert [finding["location"]["line"] for finding in payload["findings"]] == [5, 8]
+    assert all(
+        finding["headline"] == "Test is disabled or ignored"
+        for finding in payload["findings"]
+    )
+
+
 def test_cli_scan_reports_duplicate_assert_rule(tmp_path: Path) -> None:
     tests_dir = tmp_path / "tests"
     tests_dir.mkdir()
