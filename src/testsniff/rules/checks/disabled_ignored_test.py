@@ -432,8 +432,32 @@ def _resolve_static_condition_truthiness(decorator: ast.expr) -> bool | None:
 
 def _static_truthiness(expression: ast.expr) -> bool | None:
     if not isinstance(expression, ast.Constant):
+        if isinstance(expression, (ast.Tuple, ast.List, ast.Set)):
+            if not all(_is_static_literal(element) for element in expression.elts):
+                return None
+            return bool(expression.elts)
+        if isinstance(expression, ast.Dict):
+            if not all(
+                key is not None and _is_static_literal(key) and _is_static_literal(value)
+                for key, value in zip(expression.keys, expression.values, strict=True)
+            ):
+                return None
+            return bool(expression.keys)
         return None
     return bool(expression.value)
+
+
+def _is_static_literal(expression: ast.expr) -> bool:
+    if isinstance(expression, ast.Constant):
+        return True
+    if isinstance(expression, (ast.Tuple, ast.List, ast.Set)):
+        return all(_is_static_literal(element) for element in expression.elts)
+    if isinstance(expression, ast.Dict):
+        return all(
+            key is not None and _is_static_literal(key) and _is_static_literal(value)
+            for key, value in zip(expression.keys, expression.values, strict=True)
+        )
+    return False
 
 
 def _new_alias_state() -> _DecoratorAliasState:

@@ -138,6 +138,48 @@ def test_example():
     assert findings == []
 
 
+def test_disabled_ignored_rule_ignores_pytest_skipif_with_static_empty_list() -> None:
+    findings = _analyze_source(
+        """
+import pytest
+
+@pytest.mark.skipif([], reason="temporarily disabled")
+def test_example():
+    assert True
+""".strip()
+    )
+
+    assert findings == []
+
+
+def test_disabled_ignored_rule_ignores_pytest_skipif_with_static_empty_tuple() -> None:
+    findings = _analyze_source(
+        """
+import pytest
+
+@pytest.mark.skipif((), reason="temporarily disabled")
+def test_example():
+    assert True
+""".strip()
+    )
+
+    assert findings == []
+
+
+def test_disabled_ignored_rule_ignores_pytest_skipif_with_static_empty_dict() -> None:
+    findings = _analyze_source(
+        """
+import pytest
+
+@pytest.mark.skipif({}, reason="temporarily disabled")
+def test_example():
+    assert True
+""".strip()
+    )
+
+    assert findings == []
+
+
 def test_disabled_ignored_rule_ignores_pytest_skipif_with_condition_keyword() -> None:
     findings = _analyze_source(
         """
@@ -174,6 +216,21 @@ import unittest
 
 class TestExample(unittest.TestCase):
     @unittest.skipIf(0, "temporarily disabled")
+    def test_example(self):
+        self.assertTrue(True)
+""".strip()
+    )
+
+    assert findings == []
+
+
+def test_disabled_ignored_rule_ignores_unittest_skipif_with_static_empty_tuple() -> None:
+    findings = _analyze_source(
+        """
+import unittest
+
+class TestExample(unittest.TestCase):
+    @unittest.skipIf((), "temporarily disabled")
     def test_example(self):
         self.assertTrue(True)
 """.strip()
@@ -219,6 +276,36 @@ import unittest
 
 class TestExample(unittest.TestCase):
     @unittest.skipUnless(1, "temporarily disabled")
+    def test_example(self):
+        self.assertTrue(True)
+""".strip()
+    )
+
+    assert findings == []
+
+
+def test_disabled_ignored_rule_ignores_unittest_skipunless_with_static_nonempty_list() -> None:
+    findings = _analyze_source(
+        """
+import unittest
+
+class TestExample(unittest.TestCase):
+    @unittest.skipUnless([1], "temporarily disabled")
+    def test_example(self):
+        self.assertTrue(True)
+""".strip()
+    )
+
+    assert findings == []
+
+
+def test_disabled_ignored_rule_ignores_unittest_skipunless_with_static_nonempty_tuple() -> None:
+    findings = _analyze_source(
+        """
+import unittest
+
+class TestExample(unittest.TestCase):
+    @unittest.skipUnless((1,), "temporarily disabled")
     def test_example(self):
         self.assertTrue(True)
 """.strip()
