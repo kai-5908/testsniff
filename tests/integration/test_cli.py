@@ -220,3 +220,43 @@ def test_cli_scan_renders_disabled_ignored_rule_in_json(tmp_path: Path) -> None:
         finding["headline"] == "Test is disabled or ignored"
         for finding in payload["findings"]
     )
+
+
+def test_cli_scan_reports_duplicate_assert_rule(tmp_path: Path) -> None:
+    tests_dir = tmp_path / "tests"
+    tests_dir.mkdir()
+    (tests_dir / "test_example.py").write_text(
+        "def test_example(response):\n"
+        "    assert response.status_code == 201\n"
+        "    assert response.status_code == 201\n"
+    )
+
+    result = runner.invoke(
+        app,
+        ["scan", str(tests_dir), "--select", "TS005"],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 1
+    assert "error[TS005][confidence=high]: Test contains duplicated assertion" in result.stdout
+
+
+def test_cli_scan_renders_duplicate_assert_rule_in_json(tmp_path: Path) -> None:
+    tests_dir = tmp_path / "tests"
+    tests_dir.mkdir()
+    (tests_dir / "test_example.py").write_text(
+        "def test_example(response):\n"
+        "    assert response.status_code == 201\n"
+        "    assert response.status_code == 201\n"
+    )
+
+    result = runner.invoke(
+        app,
+        ["scan", str(tests_dir), "--select", "TS005", "--format", "json"],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout)
+    assert payload["findings"][0]["rule_id"] == "TS005"
+    assert payload["findings"][0]["headline"] == "Test contains duplicated assertion"
