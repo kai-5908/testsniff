@@ -454,10 +454,7 @@ def _static_truthiness(expression: ast.expr) -> bool | None:
             expression.operand, ast.Constant
         ):
             operand_value = expression.operand.value
-            if isinstance(operand_value, bool) or not isinstance(
-                operand_value,
-                (int, float, complex),
-            ):
+            if not isinstance(operand_value, (int, float, complex)):
                 return None
             numeric_value = (
                 operand_value if isinstance(expression.op, ast.UAdd) else -operand_value
@@ -470,10 +467,10 @@ def _is_static_literal(expression: ast.expr) -> bool:
     if isinstance(expression, ast.Constant):
         return True
     if isinstance(expression, ast.UnaryOp) and isinstance(expression.op, (ast.UAdd, ast.USub)):
-        return isinstance(expression.operand, ast.Constant) and not isinstance(
+        return isinstance(expression.operand, ast.Constant) and isinstance(
             expression.operand.value,
-            bool,
-        ) and isinstance(expression.operand.value, (int, float, complex))
+            (int, float, complex),
+        )
     if isinstance(expression, (ast.Tuple, ast.List, ast.Set)):
         return all(_is_static_literal(element) for element in expression.elts)
     if isinstance(expression, ast.Dict):
