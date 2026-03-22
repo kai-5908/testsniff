@@ -431,25 +431,49 @@ def _resolve_static_condition_truthiness(decorator: ast.expr) -> bool | None:
 
 
 def _static_truthiness(expression: ast.expr) -> bool | None:
-    if not isinstance(expression, ast.Constant):
-        if isinstance(expression, (ast.Tuple, ast.List, ast.Set)):
-            if not all(_is_static_literal(element) for element in expression.elts):
-                return None
-            return bool(expression.elts)
-        if isinstance(expression, ast.Dict):
-            if not all(
-                key is not None and _is_static_literal(key) and _is_static_literal(value)
-                for key, value in zip(expression.keys, expression.values, strict=True)
+    if isinstance(expression, ast.Constant):
+        return bool(expression.value)
+    if isinstance(expression, (ast.Tuple, ast.List, ast.Set)):
+        if not all(_is_static_literal(element) for element in expression.elts):
+            return None
+        return bool(expression.elts)
+    if isinstance(expression, ast.Dict):
+        if not all(
+            key is not None and _is_static_literal(key) and _is_static_literal(value)
+            for key, value in zip(expression.keys, expression.values, strict=True)
+        ):
+            return None
+        return bool(expression.keys)
+    if isinstance(expression, ast.UnaryOp):
+        operand_truthiness = _static_truthiness(expression.operand)
+        if operand_truthiness is None:
+            return None
+        if isinstance(expression.op, ast.Not):
+            return not operand_truthiness
+        if isinstance(expression.op, (ast.UAdd, ast.USub)) and isinstance(
+            expression.operand, ast.Constant
+        ):
+            operand_value = expression.operand.value
+            if isinstance(operand_value, bool) or not isinstance(
+                operand_value,
+                (int, float, complex),
             ):
                 return None
-            return bool(expression.keys)
-        return None
-    return bool(expression.value)
+            numeric_value = (
+                operand_value if isinstance(expression.op, ast.UAdd) else -operand_value
+            )
+            return bool(numeric_value)
+    return None
 
 
 def _is_static_literal(expression: ast.expr) -> bool:
     if isinstance(expression, ast.Constant):
         return True
+    if isinstance(expression, ast.UnaryOp) and isinstance(expression.op, (ast.UAdd, ast.USub)):
+        return isinstance(expression.operand, ast.Constant) and not isinstance(
+            expression.operand.value,
+            bool,
+        ) and isinstance(expression.operand.value, (int, float, complex))
     if isinstance(expression, (ast.Tuple, ast.List, ast.Set)):
         return all(_is_static_literal(element) for element in expression.elts)
     if isinstance(expression, ast.Dict):

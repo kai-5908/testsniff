@@ -180,6 +180,20 @@ def test_example():
     assert findings == []
 
 
+def test_disabled_ignored_rule_ignores_pytest_skipif_with_static_not_true() -> None:
+    findings = _analyze_source(
+        """
+import pytest
+
+@pytest.mark.skipif(not True, reason="temporarily disabled")
+def test_example():
+    assert True
+""".strip()
+    )
+
+    assert findings == []
+
+
 def test_disabled_ignored_rule_ignores_pytest_skipif_with_condition_keyword() -> None:
     findings = _analyze_source(
         """
@@ -306,6 +320,36 @@ import unittest
 
 class TestExample(unittest.TestCase):
     @unittest.skipUnless((1,), "temporarily disabled")
+    def test_example(self):
+        self.assertTrue(True)
+""".strip()
+    )
+
+    assert findings == []
+
+
+def test_disabled_ignored_rule_ignores_unittest_skipunless_with_static_not_false() -> None:
+    findings = _analyze_source(
+        """
+import unittest
+
+class TestExample(unittest.TestCase):
+    @unittest.skipUnless(not False, "temporarily disabled")
+    def test_example(self):
+        self.assertTrue(True)
+""".strip()
+    )
+
+    assert findings == []
+
+
+def test_disabled_ignored_rule_ignores_unittest_skipunless_with_static_negative_one() -> None:
+    findings = _analyze_source(
+        """
+import unittest
+
+class TestExample(unittest.TestCase):
+    @unittest.skipUnless(-1, "temporarily disabled")
     def test_example(self):
         self.assertTrue(True)
 """.strip()
