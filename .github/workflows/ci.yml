@@ -36,7 +36,7 @@ jobs:
         run: uv run ty check src
 
       - name: Pytest with coverage gate
-        run: uv run pytest -q
+        run: uv run pytest -q --cov=testsniff --cov-report=term-missing --cov-fail-under=100
 
       - name: Build package
         run: uv build

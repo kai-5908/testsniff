@@ -22,7 +22,7 @@ uv run ruff check src tests
 uv run ty check src
 
 pytest_log="$(mktemp)"
-if ! uv run pytest -q >"$pytest_log" 2>&1; then
+if ! uv run pytest -q --cov=testsniff --cov-report=term-missing --cov-fail-under=100 >"$pytest_log" 2>&1; then
   cat "$pytest_log" >&2
   if grep -q "Required test coverage of 100% not reached" "$pytest_log"; then
     echo "pre-push: coverage must reach 100% before push." >&2

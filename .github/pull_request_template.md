@@ -57,7 +57,7 @@
 # 例
 uv run ruff check src tests
 uv run ty check src
-uv run pytest -q
+uv run pytest -q --cov=testsniff --cov-report=term-missing --cov-fail-under=100
 ```
 
 結果の要約:

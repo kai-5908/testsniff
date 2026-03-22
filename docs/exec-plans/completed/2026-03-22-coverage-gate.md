@@ -61,7 +61,7 @@
 
 - 今回の「coverage 100%」は、まず `src/testsniff` に対する statement coverage 100% を意味するものとして扱う
 - coverage policy は `pytest` 側の共有設定に寄せ、CI / hook からは同じ `uv run pytest -q` 系コマンドを使う
-- `pytest-cov` の有効化は `tool.pytest.ini_options.addopts` に寄せ、日常の `uv run pytest -q` を coverage 付きの標準コマンドにする
+- `pytest-cov` は shared gate entrypoints から明示的に有効化し、focused local runs の `pytest` 契約は変えない
 - coverage レポートは `term-missing` のみとし、XML 出力は今回の非スコープとする
 - branch coverage は今回の強制対象に含めず、将来拡張できるよう設定追加の余地だけ残す
 - coverage 導入後に露出した未カバー箇所のテスト補完は、この change の中で完結させる
@@ -83,8 +83,8 @@
 ### 1. coverage policy の導入
 
 - `pytest-cov` を dev dependencies に追加する
-- `pyproject.toml` の `tool.pytest.ini_options.addopts` に coverage 対象、`term-missing`、fail-under 100 の設定を追加する
-- 手元と CI の両方で同じコマンドから coverage が有効になる形に整理する
+- shared gate entrypoints に coverage 対象、`term-missing`、fail-under 100 を明示する
+- 手元の focused run と shared gate を分離しつつ、CI と `pre-push` では同じコマンドを使う
 
 ### 2. CI と hook の統一
 
@@ -130,12 +130,12 @@
 
 - `uv run ruff check src tests`
 - `uv run ty check src`
-- `uv run pytest -q`
+- `uv run pytest -q --cov=testsniff --cov-report=term-missing --cov-fail-under=100`
 - `uv build`
 
 coverage 導入後の確認:
 
-- `uv run pytest -q` 単体で coverage 測定と fail-under 100 が有効になる
+- shared gate command で coverage 測定と fail-under 100 が有効になる
 - CI の verify job が coverage 未達で失敗する
 - `.githooks/pre-push` が coverage 未達を検知して push を止める
 - `.githooks/pre-push` の coverage failure message が、無意味な test 水増しを避け、ドメイン理解とユースケース理解に基づく test 追加を促す
@@ -159,7 +159,7 @@ coverage 導入後の確認:
 - 2026-03-22: shared command を保つため、coverage policy は `pytest` 側に寄せる前提を採用
 - 2026-03-22: `pre-commit` は高速性優先を維持し、coverage gate は `pre-push` と CI に集約する方針へ更新
 - 2026-03-22: coverage レポートは `term-missing` のみとし、branch coverage は将来拡張事項に留める
-- 2026-03-22: `pytest-cov` 設定は `tool.pytest.ini_options.addopts` に集約し、未カバー箇所の補完も同一 change で完結させる
+- 2026-03-23: review 指摘を受け、coverage gate は global `pytest` defaults ではなく shared gate entrypoints に限定する方針へ修正
 - 2026-03-22: `pre-push` の実行順は既存の `ruff` -> `ty` -> `pytest` を維持し、順序変更は行わない
 - 2026-03-22: coverage failure message は、数値達成のための無意味な test 水増しではなく、ドメイン理解に基づく test 設計を促す内容を必須とする
 

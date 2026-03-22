@@ -181,7 +181,13 @@ uv run pytest -q
 uv run ruff check .
 ```
 
-`uv run pytest -q` には `src/testsniff` の coverage 100% gate が含まれます。
+Focused local runs can use plain `uv run pytest -q <target>`.
+
+Run the shared full-suite coverage gate with:
+
+```bash
+uv run pytest -q --cov=testsniff --cov-report=term-missing --cov-fail-under=100
+```
 
 ## Scope Notes
 

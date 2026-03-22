@@ -34,7 +34,7 @@ bash .githooks/install.sh
 現時点の対象:
 - `uv run ruff check src tests`
 - `uv run ty check src`
-- coverage 100% gate を含む `uv run pytest -q`
+- coverage 100% gate を含む `uv run pytest -q --cov=testsniff --cov-report=term-missing --cov-fail-under=100`
 
 coverage 未達で `pre-push` が失敗した場合は、数値だけを満たすための表面的な test 水増しではなく、対象コードの責務、ドメイン、ユースケース、失敗モードを理解した上で意味のある test を追加するよう促すメッセージを表示します。
 
