@@ -88,7 +88,7 @@ def _block_has_duplicate_assertion(
             unittest_receiver_name=unittest_receiver_name,
         ):
             return True
-        if _statement_stops_following_flow(statement):
+        if not _statement_can_fall_through(statement):
             break
     return False
 
@@ -446,8 +446,38 @@ def _is_static_falsy(expression: ast.AST) -> bool:
     return isinstance(expression, ast.Constant) and bool(expression.value) is False
 
 
-def _statement_stops_following_flow(statement: ast.stmt) -> bool:
-    return isinstance(statement, (ast.Raise, ast.Return, ast.Break, ast.Continue))
+def _statement_can_fall_through(statement: ast.stmt) -> bool:
+    if isinstance(statement, ast.If):
+        if _is_static_truthy(statement.test):
+            return _block_can_fall_through(statement.body)
+        if _is_static_falsy(statement.test):
+            return _block_can_fall_through(statement.orelse)
+        if not statement.orelse:
+            return True
+        return _block_can_fall_through(statement.body) or _block_can_fall_through(statement.orelse)
+
+    if isinstance(statement, ast.Match):
+        if any(_block_can_fall_through(case.body) for case in statement.cases):
+            return True
+        return not _has_match_catch_all(statement)
+
+    if isinstance(statement, ast.Try):
+        if statement.finalbody:
+            return _block_can_fall_through(statement.finalbody)
+        normal_flow = _block_can_fall_through(statement.body) and _block_can_fall_through(
+            statement.orelse
+        )
+        handler_flow = any(_block_can_fall_through(handler.body) for handler in statement.handlers)
+        return normal_flow or handler_flow
+
+    return not isinstance(statement, (ast.Raise, ast.Return, ast.Break, ast.Continue))
+
+
+def _block_can_fall_through(statements: tuple[ast.stmt, ...] | list[ast.stmt]) -> bool:
+    for statement in statements:
+        if not _statement_can_fall_through(statement):
+            return False
+    return True
 
 
 def _collect_try_handler_entry_seen(

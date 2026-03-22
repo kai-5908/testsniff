@@ -160,6 +160,41 @@ def test_duplicate_assert_rule_handles_deep_assertions_without_recursion_failure
     assert findings[0].rule_id == "TS005"
 
 
+def test_duplicate_assert_rule_ignores_unreachable_assert_after_terminating_if_branches() -> None:
+    findings = _analyze_source(
+        """
+def test_example(value, flag):
+    if flag:
+        assert value == 1
+        return
+    else:
+        assert value == 1
+        return
+    assert value == 1
+""".strip()
+    )
+
+    assert findings == []
+
+
+def test_duplicate_assert_rule_ignores_unreachable_assert_after_terminating_match_cases() -> None:
+    findings = _analyze_source(
+        """
+def test_example(value):
+    match value:
+        case 1:
+            assert value == 1
+            return
+        case _:
+            assert value == 1
+            return
+    assert value == 1
+""".strip()
+    )
+
+    assert findings == []
+
+
 def _analyze_fixture(filename: str) -> list[Finding]:
     path = FIXTURES_DIR / filename
     module = ModuleContext.from_source(path, load_source(path))
