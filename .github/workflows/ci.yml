@@ -35,9 +35,8 @@ jobs:
       - name: Ty
         run: uv run ty check src
 
-      - name: Pytest
+      - name: Pytest with coverage gate
         run: uv run pytest -q
 
       - name: Build package
         run: uv build
-

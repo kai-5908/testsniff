@@ -177,9 +177,11 @@ tests/test_example.py:1:1: error[high] TS001 Test body is empty
 Run the local checks:
 
 ```bash
-uv run pytest
+uv run pytest -q
 uv run ruff check .
 ```
+
+`uv run pytest -q` には `src/testsniff` の coverage 100% gate が含まれます。
 
 ## Scope Notes
 

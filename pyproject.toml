@@ -19,6 +19,7 @@ testsniff = "testsniff.cli.main:main"
 [dependency-groups]
 dev = [
   "pytest>=8.0",
+  "pytest-cov>=6.0",
   "ruff>=0.11",
   "ty",
 ]
@@ -26,6 +27,7 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+addopts = "--cov=testsniff --cov-report=term-missing --cov-fail-under=100"
 
 [tool.ruff]
 target-version = "py312"
