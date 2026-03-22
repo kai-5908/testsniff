@@ -76,6 +76,90 @@ def test_example(value):
     assert findings[0].rule_id == "TS005"
 
 
+def test_duplicate_assert_rule_ignores_duplicate_in_finally_when_not_guaranteed() -> None:
+    findings = _analyze_source(
+        """
+def test_example(value, should_fail):
+    try:
+        if should_fail:
+            raise RuntimeError()
+        assert value == 1
+    except RuntimeError:
+        pass
+    finally:
+        assert value == 1
+""".strip()
+    )
+
+    assert findings == []
+
+
+def test_duplicate_assert_rule_reports_duplicate_across_try_except_after_explicit_raise() -> None:
+    findings = _analyze_source(
+        """
+def test_example(value):
+    try:
+        assert value == 1
+        raise RuntimeError()
+    except RuntimeError:
+        assert value == 1
+""".strip()
+    )
+
+    assert len(findings) == 1
+    assert findings[0].rule_id == "TS005"
+
+
+def test_duplicate_assert_rule_ignores_non_exhaustive_match_without_catch_all() -> None:
+    findings = _analyze_source(
+        """
+def test_example(value):
+    match value:
+        case 1:
+            assert value == 1
+    assert value == 1
+""".strip()
+    )
+
+    assert findings == []
+
+
+def test_duplicate_assert_rule_treats_unittest_messages_consistently() -> None:
+    keyword_findings = _analyze_source(
+        """
+import unittest
+
+class TestExample(unittest.TestCase):
+    def test_example(self, value):
+        self.assertEqual(value, 1, msg="a")
+        self.assertEqual(value, 1, msg="b")
+""".strip()
+    )
+    positional_findings = _analyze_source(
+        """
+import unittest
+
+class TestExample(unittest.TestCase):
+    def test_example(self, value):
+        self.assertEqual(value, 1, "a")
+        self.assertEqual(value, 1, "b")
+""".strip()
+    )
+
+    assert keyword_findings == []
+    assert positional_findings == []
+
+
+def test_duplicate_assert_rule_handles_deep_assertions_without_recursion_failure() -> None:
+    expression = "not " * 1200 + "value"
+    findings = _analyze_source(
+        f"def test_example(value):\n    assert {expression}\n    assert {expression}\n"
+    )
+
+    assert len(findings) == 1
+    assert findings[0].rule_id == "TS005"
+
+
 def _analyze_fixture(filename: str) -> list[Finding]:
     path = FIXTURES_DIR / filename
     module = ModuleContext.from_source(path, load_source(path))

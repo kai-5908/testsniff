@@ -12,6 +12,7 @@ from testsniff.rules.checks._function_body import is_effectively_empty, iter_exe
 
 type _NormalizedValue = object
 type _AssertionKey = tuple[str, _NormalizedValue]
+type _NormalizedToken = tuple[object, ...]
 _IGNORED_NORMALIZED_FIELDS = {
     "col_offset",
     "ctx",
@@ -87,6 +88,8 @@ def _block_has_duplicate_assertion(
             unittest_receiver_name=unittest_receiver_name,
         ):
             return True
+        if _statement_stops_following_flow(statement):
+            break
     return False
 
 
@@ -198,8 +201,13 @@ def _statement_has_duplicate_assertion(
             return True
         branch_end_states.append(orelse_seen)
 
+        handler_entry_seen = _collect_try_handler_entry_seen(
+            statement.body,
+            seen_assertions=seen_assertions,
+            unittest_receiver_name=unittest_receiver_name,
+        )
         for handler in statement.handlers:
-            handler_seen = set(seen_assertions)
+            handler_seen = set(handler_entry_seen)
             if handler.type is not None and _record_expression_assertions(
                 handler.type,
                 seen_assertions=handler_seen,
@@ -214,20 +222,18 @@ def _statement_has_duplicate_assertion(
                 return True
             branch_end_states.append(handler_seen)
 
-        final_states = branch_end_states
         if statement.finalbody:
-            final_states = []
-            for branch_seen in branch_end_states:
-                final_seen = set(branch_seen)
-                if _block_has_duplicate_assertion(
-                    statement.finalbody,
-                    seen_assertions=final_seen,
-                    unittest_receiver_name=unittest_receiver_name,
-                ):
-                    return True
-                final_states.append(final_seen)
+            final_seen = _intersect_seen_assertions(branch_end_states)
+            if _block_has_duplicate_assertion(
+                statement.finalbody,
+                seen_assertions=final_seen,
+                unittest_receiver_name=unittest_receiver_name,
+            ):
+                return True
+            _overwrite_seen_assertions(seen_assertions, final_seen)
+            return False
 
-        _overwrite_seen_assertions(seen_assertions, _intersect_seen_assertions(final_states))
+        _overwrite_seen_assertions(seen_assertions, _intersect_seen_assertions(branch_end_states))
         return False
 
     if isinstance(statement, ast.Match):
@@ -247,6 +253,8 @@ def _statement_has_duplicate_assertion(
             ):
                 return True
             case_end_states.append(case_seen)
+        if not _has_match_catch_all(statement):
+            case_end_states.append(set(seen_assertions))
         if case_end_states:
             _overwrite_seen_assertions(seen_assertions, _intersect_seen_assertions(case_end_states))
         return False
@@ -373,7 +381,6 @@ def _normalize_unittest_assertion_call(
             _normalize_ast(keyword.value),
         )
         for keyword in node.keywords
-        if keyword.arg != "msg"
     ]
     keywords.sort(key=lambda item: (item[0], repr(item[1])))
     return (
@@ -387,18 +394,48 @@ def _normalize_unittest_assertion_call(
 
 
 def _normalize_ast(node: _NormalizedValue) -> _NormalizedValue:
-    if isinstance(node, ast.AST):
-        fields: list[tuple[str, _NormalizedValue]] = []
-        for field_name, value in ast.iter_fields(node):
-            if field_name in _IGNORED_NORMALIZED_FIELDS:
-                continue
-            fields.append((field_name, _normalize_ast(value)))
-        return (node.__class__.__name__, tuple(fields))
-    if isinstance(node, list):
-        return tuple(_normalize_ast(item) for item in node)
-    if isinstance(node, tuple):
-        return tuple(_normalize_ast(item) for item in node)
-    return node
+    tokens: list[_NormalizedToken] = []
+    stack: list[tuple[str, object]] = [("visit", node)]
+
+    while stack:
+        action, value = stack.pop()
+        if action == "field":
+            tokens.append(("field", value))
+            continue
+        if action == "end":
+            tokens.append(("end", value))
+            continue
+
+        if isinstance(value, ast.AST):
+            tokens.append(("node", value.__class__.__name__))
+            stack.append(("end", "node"))
+            fields = [
+                (field_name, field_value)
+                for field_name, field_value in ast.iter_fields(value)
+                if field_name not in _IGNORED_NORMALIZED_FIELDS
+            ]
+            for field_name, field_value in reversed(fields):
+                stack.append(("visit", field_value))
+                stack.append(("field", field_name))
+            continue
+
+        if isinstance(value, list):
+            tokens.append(("list", len(value)))
+            stack.append(("end", "list"))
+            for item in reversed(value):
+                stack.append(("visit", item))
+            continue
+
+        if isinstance(value, tuple):
+            tokens.append(("tuple", len(value)))
+            stack.append(("end", "tuple"))
+            for item in reversed(value):
+                stack.append(("visit", item))
+            continue
+
+        tokens.append(("value", type(value).__name__, repr(value)))
+
+    return tuple(tokens)
 
 
 def _is_static_truthy(expression: ast.AST) -> bool:
@@ -407,3 +444,71 @@ def _is_static_truthy(expression: ast.AST) -> bool:
 
 def _is_static_falsy(expression: ast.AST) -> bool:
     return isinstance(expression, ast.Constant) and bool(expression.value) is False
+
+
+def _statement_stops_following_flow(statement: ast.stmt) -> bool:
+    return isinstance(statement, (ast.Raise, ast.Return, ast.Break, ast.Continue))
+
+
+def _collect_try_handler_entry_seen(
+    statements: tuple[ast.stmt, ...] | list[ast.stmt],
+    *,
+    seen_assertions: set[_AssertionKey],
+    unittest_receiver_name: str | None,
+) -> set[_AssertionKey]:
+    current = set(seen_assertions)
+
+    for statement in statements:
+        if isinstance(statement, ast.Assert):
+            current.add(_normalize_bare_assert(statement))
+            continue
+
+        unittest_key = _extract_top_level_unittest_assertion_key(
+            statement,
+            unittest_receiver_name=unittest_receiver_name,
+        )
+        if unittest_key is not None:
+            current.add(unittest_key)
+            continue
+
+        if isinstance(statement, ast.Raise):
+            return current
+
+        if _is_trivial_statement(statement):
+            continue
+
+        return set(seen_assertions)
+
+    return set(seen_assertions)
+
+
+def _extract_top_level_unittest_assertion_key(
+    statement: ast.stmt,
+    *,
+    unittest_receiver_name: str | None,
+) -> _AssertionKey | None:
+    if not isinstance(statement, ast.Expr):
+        return None
+    if not isinstance(statement.value, ast.Call):
+        return None
+    return _normalize_unittest_assertion_call(statement.value, unittest_receiver_name)
+
+
+def _is_trivial_statement(statement: ast.stmt) -> bool:
+    if isinstance(statement, ast.Pass):
+        return True
+    return (
+        isinstance(statement, ast.Expr)
+        and isinstance(statement.value, ast.Constant)
+        and isinstance(statement.value.value, str)
+    )
+
+
+def _has_match_catch_all(statement: ast.Match) -> bool:
+    return any(
+        isinstance(case.pattern, ast.MatchAs)
+        and case.pattern.pattern is None
+        and case.pattern.name is None
+        and case.guard is None
+        for case in statement.cases
+    )
