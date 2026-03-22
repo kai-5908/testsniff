@@ -18,7 +18,7 @@ class _DecoratorAliasState:
     pytest_module_aliases: set[str]
     unittest_module_aliases: set[str]
     unittest_case_aliases: set[str]
-    unittest_skip_names: set[str]
+    unittest_skip_names: dict[str, str]
 
 
 @dataclass(slots=True)
@@ -348,45 +348,63 @@ def _has_disabled_decorator(
     alias_state: _DecoratorAliasState,
 ) -> bool:
     for decorator in decorators:
-        candidate = decorator.func if isinstance(decorator, ast.Call) else decorator
-        dotted_name = _as_dotted_name(candidate)
-        if dotted_name is None:
-            continue
-        if _is_pytest_disabled_decorator(dotted_name, alias_state):
-            return True
-        if _is_unittest_disabled_decorator(dotted_name, alias_state):
+        if _decorator_disables_target(decorator, alias_state):
             return True
     return False
 
 
-def _is_pytest_disabled_decorator(
-    dotted_name: str,
+def _decorator_disables_target(
+    decorator: ast.expr,
     alias_state: _DecoratorAliasState,
 ) -> bool:
-    return any(
-        dotted_name == f"{alias}.mark.{marker_name}"
-        for alias in alias_state.pytest_module_aliases
-        for marker_name in _PYTEST_DISABLED_MARKERS
-    )
+    candidate = decorator.func if isinstance(decorator, ast.Call) else decorator
+    dotted_name = _as_dotted_name(candidate)
+    if dotted_name is None:
+        return False
+
+    kind = _resolve_decorator_kind(dotted_name, alias_state)
+    if kind is None:
+        return False
+    if kind == "skip":
+        return True
+    if kind in {"pytest_skipif", "skipIf"}:
+        return not _first_argument_is_static_bool(decorator, value=False)
+    if kind == "skipUnless":
+        return not _first_argument_is_static_bool(decorator, value=True)
+    return False
 
 
-def _is_unittest_disabled_decorator(
+def _resolve_decorator_kind(
     dotted_name: str,
     alias_state: _DecoratorAliasState,
-) -> bool:
-    if dotted_name in alias_state.unittest_skip_names:
-        return True
-    if any(
-        dotted_name in {f"{alias}.{decorator}", f"{alias}.case.{decorator}"}
-        for alias in alias_state.unittest_module_aliases
-        for decorator in _UNITTEST_DISABLED_DECORATORS
-    ):
-        return True
-    return any(
-        dotted_name == f"{alias}.{decorator}"
-        for alias in alias_state.unittest_case_aliases
-        for decorator in _UNITTEST_DISABLED_DECORATORS
-    )
+) -> str | None:
+    for alias in alias_state.pytest_module_aliases:
+        if dotted_name == f"{alias}.mark.skip":
+            return "skip"
+        if dotted_name == f"{alias}.mark.skipif":
+            return "pytest_skipif"
+
+    direct_unittest = alias_state.unittest_skip_names.get(dotted_name)
+    if direct_unittest is not None:
+        return direct_unittest
+
+    for alias in alias_state.unittest_module_aliases:
+        for decorator_name in _UNITTEST_DISABLED_DECORATORS:
+            if dotted_name in {f"{alias}.{decorator_name}", f"{alias}.case.{decorator_name}"}:
+                return decorator_name
+
+    for alias in alias_state.unittest_case_aliases:
+        for decorator_name in _UNITTEST_DISABLED_DECORATORS:
+            if dotted_name == f"{alias}.{decorator_name}":
+                return decorator_name
+
+    return None
+
+
+def _first_argument_is_static_bool(decorator: ast.expr, *, value: bool) -> bool:
+    if not isinstance(decorator, ast.Call) or not decorator.args:
+        return False
+    return isinstance(decorator.args[0], ast.Constant) and decorator.args[0].value is value
 
 
 def _new_alias_state() -> _DecoratorAliasState:
@@ -394,7 +412,7 @@ def _new_alias_state() -> _DecoratorAliasState:
         pytest_module_aliases=set(),
         unittest_module_aliases=set(),
         unittest_case_aliases=set(),
-        unittest_skip_names=set(),
+        unittest_skip_names={},
     )
 
 
@@ -403,7 +421,7 @@ def _copy_alias_state(alias_state: _DecoratorAliasState) -> _DecoratorAliasState
         pytest_module_aliases=set(alias_state.pytest_module_aliases),
         unittest_module_aliases=set(alias_state.unittest_module_aliases),
         unittest_case_aliases=set(alias_state.unittest_case_aliases),
-        unittest_skip_names=set(alias_state.unittest_skip_names),
+        unittest_skip_names=dict(alias_state.unittest_skip_names),
     )
 
 
@@ -429,7 +447,11 @@ def _merge_alias_state_intersection(
         pytest_module_aliases=left.pytest_module_aliases & right.pytest_module_aliases,
         unittest_module_aliases=left.unittest_module_aliases & right.unittest_module_aliases,
         unittest_case_aliases=left.unittest_case_aliases & right.unittest_case_aliases,
-        unittest_skip_names=left.unittest_skip_names & right.unittest_skip_names,
+        unittest_skip_names={
+            name: decorator_name
+            for name, decorator_name in left.unittest_skip_names.items()
+            if right.unittest_skip_names.get(name) == decorator_name
+        },
     )
 
 
@@ -464,7 +486,7 @@ def _apply_import_from_alias_updates(
         for alias in statement.names:
             bound_name = alias.asname or alias.name
             if alias.name in _UNITTEST_DISABLED_DECORATORS:
-                alias_state.unittest_skip_names.add(bound_name)
+                alias_state.unittest_skip_names[bound_name] = alias.name
             elif alias.name == "case":
                 alias_state.unittest_case_aliases.add(bound_name)
         return
@@ -472,7 +494,7 @@ def _apply_import_from_alias_updates(
     if statement.module == "unittest.case":
         for alias in statement.names:
             if alias.name in _UNITTEST_DISABLED_DECORATORS:
-                alias_state.unittest_skip_names.add(alias.asname or alias.name)
+                alias_state.unittest_skip_names[alias.asname or alias.name] = alias.name
 
 
 def _discard_aliases(
@@ -482,7 +504,8 @@ def _discard_aliases(
     alias_state.pytest_module_aliases.difference_update(rebound_names)
     alias_state.unittest_module_aliases.difference_update(rebound_names)
     alias_state.unittest_case_aliases.difference_update(rebound_names)
-    alias_state.unittest_skip_names.difference_update(rebound_names)
+    for name in rebound_names:
+        alias_state.unittest_skip_names.pop(name, None)
 
 
 def _collect_rebound_names(statement: ast.stmt) -> set[str]:
@@ -490,16 +513,38 @@ def _collect_rebound_names(statement: ast.stmt) -> set[str]:
         names: set[str] = set()
         for target in statement.targets:
             names.update(_collect_target_names(target))
+        names.update(_collect_named_expr_names(statement.value))
         return names
     if isinstance(statement, (ast.AnnAssign, ast.AugAssign)):
-        return _collect_target_names(statement.target)
+        names = _collect_target_names(statement.target)
+        if statement.value is not None:
+            names.update(_collect_named_expr_names(statement.value))
+        return names
+    if isinstance(statement, ast.Delete):
+        names: set[str] = set()
+        for target in statement.targets:
+            names.update(_collect_target_names(target))
+        return names
+    if isinstance(statement, ast.Expr):
+        return _collect_named_expr_names(statement.value)
+    if isinstance(statement, (ast.If, ast.While)):
+        return _collect_named_expr_names(statement.test)
     if isinstance(statement, (ast.For, ast.AsyncFor)):
-        return _collect_target_names(statement.target)
+        names = _collect_target_names(statement.target)
+        names.update(_collect_named_expr_names(statement.iter))
+        return names
     if isinstance(statement, (ast.With, ast.AsyncWith)):
         names: set[str] = set()
         for item in statement.items:
             if item.optional_vars is not None:
                 names.update(_collect_target_names(item.optional_vars))
+            names.update(_collect_named_expr_names(item.context_expr))
+        return names
+    if isinstance(statement, ast.Match):
+        names = _collect_named_expr_names(statement.subject)
+        for case in statement.cases:
+            if case.guard is not None:
+                names.update(_collect_named_expr_names(case.guard))
         return names
     if isinstance(statement, ast.ExceptHandler) and statement.name is not None:
         return {statement.name}
@@ -525,6 +570,25 @@ def _collect_target_names(target: ast.expr) -> set[str]:
     if isinstance(target, ast.Starred):
         return _collect_target_names(target.value)
     return set()
+
+
+def _collect_named_expr_names(node: ast.AST) -> set[str]:
+    names: set[str] = set()
+    stack: list[ast.AST] = [node]
+
+    while stack:
+        current = stack.pop()
+        if isinstance(current, ast.NamedExpr):
+            names.update(_collect_target_names(current.target))
+            stack.append(current.value)
+            continue
+        if isinstance(current, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)):
+            continue
+        children = list(ast.iter_child_nodes(current))
+        for child in reversed(children):
+            stack.append(child)
+
+    return names
 
 
 def _collect_pattern_capture_names(pattern: ast.pattern) -> set[str]:

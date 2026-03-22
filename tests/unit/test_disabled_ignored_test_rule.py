@@ -96,6 +96,50 @@ def test_disabled_ignored_rule_ignores_runtime_pytest_skip_calls() -> None:
     assert findings == []
 
 
+def test_disabled_ignored_rule_ignores_pytest_skipif_with_static_false_condition() -> None:
+    findings = _analyze_source(
+        """
+import pytest
+
+@pytest.mark.skipif(False, reason="temporarily disabled")
+def test_example():
+    assert True
+""".strip()
+    )
+
+    assert findings == []
+
+
+def test_disabled_ignored_rule_ignores_unittest_skipif_with_static_false_condition() -> None:
+    findings = _analyze_source(
+        """
+import unittest
+
+class TestExample(unittest.TestCase):
+    @unittest.skipIf(False, "temporarily disabled")
+    def test_example(self):
+        self.assertTrue(True)
+""".strip()
+    )
+
+    assert findings == []
+
+
+def test_disabled_ignored_rule_ignores_unittest_skipunless_with_static_true_condition() -> None:
+    findings = _analyze_source(
+        """
+import unittest
+
+class TestExample(unittest.TestCase):
+    @unittest.skipUnless(True, "temporarily disabled")
+    def test_example(self):
+        self.assertTrue(True)
+""".strip()
+    )
+
+    assert findings == []
+
+
 def test_disabled_ignored_rule_ignores_unrelated_decorators() -> None:
     findings = _analyze_fixture("negative_unrelated_decorator.py")
 
@@ -190,6 +234,38 @@ import pytest
 match object():
     case pytest:
         pass
+
+@pytest.mark.skip(reason="temporarily disabled")
+def test_example():
+    assert True
+""".strip()
+    )
+
+    assert findings == []
+
+
+def test_disabled_ignored_rule_drops_alias_after_delete() -> None:
+    findings = _analyze_source(
+        """
+import pytest
+
+del pytest
+
+@pytest.mark.skip(reason="temporarily disabled")
+def test_example():
+    assert True
+""".strip()
+    )
+
+    assert findings == []
+
+
+def test_disabled_ignored_rule_drops_alias_after_named_expression_rebinding() -> None:
+    findings = _analyze_source(
+        """
+import pytest
+
+(pytest := object())
 
 @pytest.mark.skip(reason="temporarily disabled")
 def test_example():
