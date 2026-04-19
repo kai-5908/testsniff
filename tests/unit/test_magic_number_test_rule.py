@@ -259,6 +259,7 @@ def test_magic_number_resolve_unittest_assertion_method_name_covers_rejections()
     plain_call = ast.parse("helper(2)", mode="eval").body
     foreign_call = ast.parse("other.assertEqual(value, 2)", mode="eval").body
     unsupported_call = ast.parse("self.assertIn(value, [2])", mode="eval").body
+    non_assert_method = ast.parse("self.helper(value, 2)", mode="eval").body
 
     assert (
         magic_number_test._resolve_unittest_assertion_method_name(
@@ -280,6 +281,13 @@ def test_magic_number_resolve_unittest_assertion_method_name_covers_rejections()
             unittest_receiver_name="self",
         )
         == "assertIn"
+    )
+    assert (
+        magic_number_test._resolve_unittest_assertion_method_name(
+            non_assert_method,
+            unittest_receiver_name="self",
+        )
+        is None
     )
 
 
