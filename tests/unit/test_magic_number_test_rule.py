@@ -35,6 +35,15 @@ def test_magic_number_test_rule_reports_negative_literal() -> None:
     assert findings[0].column == 21
 
 
+def test_magic_number_test_rule_reports_identity_literal() -> None:
+    findings = _analyze_fixture("positive_bare_assert_identity.py")
+
+    assert len(findings) == 1
+    assert findings[0].rule_id == "TS006"
+    assert findings[0].line == 2
+    assert findings[0].column == 21
+
+
 def test_magic_number_test_rule_reports_unittest_comparison_assertion() -> None:
     findings = _analyze_fixture("positive_unittest_assert_equal.py")
 
@@ -42,6 +51,15 @@ def test_magic_number_test_rule_reports_unittest_comparison_assertion() -> None:
     assert findings[0].rule_id == "TS006"
     assert findings[0].line == 6
     assert findings[0].column == 33
+
+
+def test_magic_number_test_rule_reports_unittest_identity_assertion() -> None:
+    findings = _analyze_fixture("positive_unittest_assert_is.py")
+
+    assert len(findings) == 1
+    assert findings[0].rule_id == "TS006"
+    assert findings[0].line == 6
+    assert findings[0].column == 30
 
 
 def test_magic_number_test_rule_reports_unittest_condition_assertion() -> None:
@@ -67,6 +85,18 @@ def test_magic_number_test_rule_ignores_general_call_arguments() -> None:
 
 def test_magic_number_test_rule_ignores_membership_assertions() -> None:
     findings = _analyze_fixture("negative_membership_assert.py")
+
+    assert findings == []
+
+
+def test_magic_number_test_rule_ignores_nested_helper_compare_in_assert() -> None:
+    findings = _analyze_fixture("negative_nested_helper_assert.py")
+
+    assert findings == []
+
+
+def test_magic_number_test_rule_ignores_nested_helper_compare_in_assert_true() -> None:
+    findings = _analyze_fixture("negative_nested_helper_assert_true.py")
 
     assert findings == []
 
@@ -235,6 +265,12 @@ def test_magic_number_find_keyword_argument_returns_match_or_none() -> None:
 
 def test_magic_number_compare_helper_skips_lambda_children() -> None:
     expression = ast.parse("(lambda: 200 == 300)", mode="eval").body
+
+    assert magic_number_test._iter_compare_magic_number_literals(expression) == []
+
+
+def test_magic_number_compare_helper_requires_top_level_compare() -> None:
+    expression = ast.parse("any(item == 200 for item in values)", mode="eval").body
 
     assert magic_number_test._iter_compare_magic_number_literals(expression) == []
 

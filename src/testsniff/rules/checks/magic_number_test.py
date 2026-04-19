@@ -15,6 +15,8 @@ _BINARY_ASSERTION_METHODS = frozenset(
     {
         "assertEqual",
         "assertNotEqual",
+        "assertIs",
+        "assertIsNot",
         "assertGreater",
         "assertGreaterEqual",
         "assertLess",
@@ -27,6 +29,8 @@ _CONDITION_ASSERTION_METHODS = frozenset({"assertTrue", "assertFalse"})
 _SUPPORTED_COMPARE_OPERATORS = (
     ast.Eq,
     ast.NotEq,
+    ast.Is,
+    ast.IsNot,
     ast.Lt,
     ast.LtE,
     ast.Gt,
@@ -243,26 +247,16 @@ def _find_keyword_argument(call: ast.Call, name: str) -> ast.expr | None:
 
 
 def _iter_compare_magic_number_literals(expression: ast.AST) -> list[ast.expr]:
+    if not isinstance(expression, ast.Compare):
+        return []
+    if not all(isinstance(operator, _SUPPORTED_COMPARE_OPERATORS) for operator in expression.ops):
+        return []
+
     literals: list[ast.expr] = []
-    stack: list[ast.AST] = [expression]
-
-    while stack:
-        node = stack.pop()
-        if isinstance(node, ast.Compare) and all(
-            isinstance(operator, _SUPPORTED_COMPARE_OPERATORS)
-            for operator in node.ops
-        ):
-            operands = [node.left, *node.comparators]
-            for operand in operands:
-                literal = _extract_magic_number_literal(operand)
-                if literal is not None:
-                    literals.append(literal)
-        if isinstance(node, ast.Lambda):
-            continue
-        children = list(ast.iter_child_nodes(node))
-        for child in reversed(children):
-            stack.append(child)
-
+    for operand in [expression.left, *expression.comparators]:
+        literal = _extract_magic_number_literal(operand)
+        if literal is not None:
+            literals.append(literal)
     return literals
 
 
