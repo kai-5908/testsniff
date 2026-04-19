@@ -81,6 +81,75 @@ def test_example(flag):
     assert findings[0].rule_id == "TS007"
 
 
+def test_conditional_logic_rule_reports_if_nested_inside_with_block() -> None:
+    findings = _analyze_source(
+        """
+class Dummy:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+def test_example(flag):
+    with Dummy():
+        if flag:
+            assert True
+""".strip()
+    )
+
+    assert len(findings) == 1
+    assert findings[0].rule_id == "TS007"
+
+
+def test_conditional_logic_rule_reports_if_nested_inside_loop_else() -> None:
+    findings = _analyze_source(
+        """
+def test_example(values, flag):
+    for value in values:
+        assert value is not None
+    else:
+        if flag:
+            assert True
+""".strip()
+    )
+
+    assert len(findings) == 1
+    assert findings[0].rule_id == "TS007"
+
+
+def test_conditional_logic_rule_reports_if_nested_inside_except_handler() -> None:
+    findings = _analyze_source(
+        """
+def test_example(flag):
+    try:
+        raise RuntimeError("boom")
+    except RuntimeError:
+        if flag:
+            assert True
+""".strip()
+    )
+
+    assert len(findings) == 1
+    assert findings[0].rule_id == "TS007"
+
+
+def test_conditional_logic_rule_reports_if_nested_inside_try_finally_only() -> None:
+    findings = _analyze_source(
+        """
+def test_example(flag):
+    try:
+        assert True
+    finally:
+        if flag:
+            assert True
+""".strip()
+    )
+
+    assert len(findings) == 1
+    assert findings[0].rule_id == "TS007"
+
+
 def test_conditional_logic_rule_reports_if_nested_inside_match_case_body() -> None:
     findings = _analyze_source(
         """
