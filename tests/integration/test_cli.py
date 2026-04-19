@@ -260,3 +260,49 @@ def test_cli_scan_renders_duplicate_assert_rule_in_json(tmp_path: Path) -> None:
     payload = json.loads(result.stdout)
     assert payload["findings"][0]["rule_id"] == "TS005"
     assert payload["findings"][0]["headline"] == "Test contains duplicated assertion"
+
+
+def test_cli_scan_reports_magic_number_test_rule(tmp_path: Path) -> None:
+    tests_dir = tmp_path / "tests"
+    tests_dir.mkdir()
+    (tests_dir / "test_example.py").write_text(
+        "def test_example(value):\n"
+        "    assert value == 200\n"
+    )
+
+    result = runner.invoke(
+        app,
+        ["scan", str(tests_dir), "--select", "TS006"],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 1
+    assert (
+        "warning[TS006][confidence=high]: "
+        "Test uses unexplained magic number in expectation"
+    ) in result.stdout
+    assert "test_example.py:2:21" in result.stdout
+
+
+def test_cli_scan_renders_magic_number_test_rule_in_json(tmp_path: Path) -> None:
+    tests_dir = tmp_path / "tests"
+    tests_dir.mkdir()
+    (tests_dir / "test_example.py").write_text(
+        "def test_example(value):\n"
+        "    assert value == 200\n"
+    )
+
+    result = runner.invoke(
+        app,
+        ["scan", str(tests_dir), "--select", "TS006", "--format", "json"],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout)
+    assert payload["findings"][0]["rule_id"] == "TS006"
+    assert payload["findings"][0]["headline"] == "Test uses unexplained magic number in expectation"
+    assert payload["findings"][0]["severity"] == "warning"
+    assert payload["findings"][0]["confidence"] == "high"
+    assert payload["findings"][0]["location"]["line"] == 2
+    assert payload["findings"][0]["location"]["column"] == 21
