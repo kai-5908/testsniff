@@ -306,7 +306,8 @@ def _is_supported_unittest_assertion_call(
     call: ast.Call,
     unittest_receiver_name: str | None,
 ) -> bool:
-    return _resolve_unittest_assertion_method_name(call, unittest_receiver_name) is not None
+    method_name = _resolve_unittest_assertion_method_name(call, unittest_receiver_name)
+    return method_name in _BINARY_ASSERTION_METHODS | _CONDITION_ASSERTION_METHODS
 
 
 def _resolve_unittest_assertion_method_name(
@@ -320,6 +321,6 @@ def _resolve_unittest_assertion_method_name(
     if not isinstance(call.func.value, ast.Name) or call.func.value.id != unittest_receiver_name:
         return None
     method_name = call.func.attr
-    if method_name in _BINARY_ASSERTION_METHODS | _CONDITION_ASSERTION_METHODS:
+    if method_name.startswith("assert"):
         return method_name
     return None
