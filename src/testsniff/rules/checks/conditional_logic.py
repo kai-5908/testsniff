@@ -64,15 +64,8 @@ def _statement_contains_conditional_logic(statement: ast.stmt) -> bool:
             statement.orelse
         )
 
-    if isinstance(statement, ast.Try):
-        if _contains_conditional_logic(statement.body):
-            return True
-        for handler in statement.handlers:
-            if _contains_conditional_logic(handler.body):
-                return True
-        return _contains_conditional_logic(statement.orelse) or _contains_conditional_logic(
-            statement.finalbody
-        )
+    if isinstance(statement, ast.Try | ast.TryStar):
+        return _try_statement_contains_conditional_logic(statement)
 
     if isinstance(statement, ast.Match):
         for case in statement.cases:
@@ -81,3 +74,14 @@ def _statement_contains_conditional_logic(statement: ast.stmt) -> bool:
         return False
 
     return False
+
+
+def _try_statement_contains_conditional_logic(statement: ast.Try | ast.TryStar) -> bool:
+    if _contains_conditional_logic(statement.body):
+        return True
+    for handler in statement.handlers:
+        if _contains_conditional_logic(handler.body):
+            return True
+    return _contains_conditional_logic(statement.orelse) or _contains_conditional_logic(
+        statement.finalbody
+    )

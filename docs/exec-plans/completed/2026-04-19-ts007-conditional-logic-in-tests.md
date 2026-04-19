@@ -14,7 +14,7 @@
 
 Issue #9 は、`if` などの条件分岐を含む test を `TS007` として検出する rule の追加を求めている。
 
-ただし現行の採用済み product spec [docs/product-specs/rule-catalog-scope.md](/home/aoi_takanashi/testsniff/worktrees/issue-9-plan/docs/product-specs/rule-catalog-scope.md) には `TS007` がまだ含まれていない。そのため、この task は rule 実装だけでは完結せず、v1 catalog への追加、対象にする分岐構文、初期 severity を同じ change で固定する必要がある。
+ただし現行の採用済み product spec [docs/product-specs/rule-catalog-scope.md](/home/aoi_takanashi/testsniff/docs/product-specs/rule-catalog-scope.md) には `TS007` がまだ含まれていない。そのため、この task は rule 実装だけでは完結せず、v1 catalog への追加、対象にする分岐構文、初期 severity を同じ change で固定する必要がある。
 
 ## 目的
 
@@ -32,7 +32,7 @@ Issue #9 の受け入れ条件は、実装と検証で次のように具体化�
 - nested helper や対象外構文に由来する false positive を抑えた conservative な仕様になっている
 - `TS007` finding には stable な位置情報と `WHY` / `FIX` / `EXAMPLE` を支える metadata が含まれる
 - CLI の human 表示と json 表示の双方で `TS007` が既存 rule と同じ契約で出力される
-- [docs/product-specs/rule-catalog-scope.md](/home/aoi_takanashi/testsniff/worktrees/issue-9-plan/docs/product-specs/rule-catalog-scope.md) に `TS007` の対象構文、初期 severity、confidence、非ゴールが反映される
+- [docs/product-specs/rule-catalog-scope.md](/home/aoi_takanashi/testsniff/docs/product-specs/rule-catalog-scope.md) に `TS007` の対象構文、初期 severity、confidence、非ゴールが反映される
 
 ## スコープ
 

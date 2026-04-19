@@ -134,6 +134,22 @@ def test_example(flag):
     assert findings[0].rule_id == "TS007"
 
 
+def test_conditional_logic_rule_reports_if_nested_inside_except_star_handler() -> None:
+    findings = _analyze_source(
+        """
+def test_example(flag):
+    try:
+        raise ValueErrorGroup("boom", [ValueError("x")])
+    except* ValueError:
+        if flag:
+            assert True
+""".strip()
+    )
+
+    assert len(findings) == 1
+    assert findings[0].rule_id == "TS007"
+
+
 def test_conditional_logic_rule_reports_if_nested_inside_try_finally_only() -> None:
     findings = _analyze_source(
         """
