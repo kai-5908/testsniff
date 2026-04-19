@@ -9,6 +9,7 @@ from testsniff.rules.checks.conditional_logic import ConditionalLogicRule
 from testsniff.rules.checks.disabled_ignored_test import DisabledIgnoredTestRule
 from testsniff.rules.checks.duplicate_assert import DuplicateAssertRule
 from testsniff.rules.checks.empty_test import EmptyTestRule
+from testsniff.rules.checks.magic_number_test import MagicNumberTestRule
 from testsniff.rules.checks.missing_assertion import MissingAssertionRule
 
 AVAILABLE_RULES: tuple[Rule, ...] = (
@@ -17,6 +18,7 @@ AVAILABLE_RULES: tuple[Rule, ...] = (
     cast(Rule, MissingAssertionRule()),
     cast(Rule, DisabledIgnoredTestRule()),
     cast(Rule, DuplicateAssertRule()),
+    cast(Rule, MagicNumberTestRule()),
     cast(Rule, ConditionalLogicRule()),
 )
 

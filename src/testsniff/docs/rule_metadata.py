@@ -167,6 +167,35 @@ DUPLICATE_ASSERT = RuleMetadata(
         "docs/exec-plans/completed/2026-03-22-ts005-duplicate-assert.md",
     ),
 )
+MAGIC_NUMBER_TEST = RuleMetadata(
+    rule_id="TS006",
+    headline="Test uses unexplained magic number in expectation",
+    default_severity="warning",
+    default_confidence="high",
+    why=(
+        "Hard-coded expectation numbers can hide intent, which makes tests harder to read and "
+        "update when named constants or domain terms would be clearer."
+    ),
+    fix=(
+        "Replace the bare numeric expectation with a named constant, enum, or helper that makes "
+        "the expected meaning explicit."
+    ),
+    example=ExampleSnippet(
+        bad=(
+            "def test_status_code(response):\n"
+            "    assert response.status_code == 200"
+        ),
+        good=(
+            "from http import HTTPStatus\n\n"
+            "def test_status_code(response):\n"
+            "    assert response.status_code == HTTPStatus.OK"
+        ),
+    ),
+    references=(
+        "docs/product-specs/rule-catalog-scope.md",
+        "docs/exec-plans/completed/2026-04-19-ts006-magic-number-test.md",
+    ),
+)
 
 CONDITIONAL_LOGIC = RuleMetadata(
     rule_id="TS007",
@@ -203,5 +232,6 @@ RULE_METADATA_BY_ID: dict[str, RuleMetadata] = {
     MISSING_ASSERTION.rule_id: MISSING_ASSERTION,
     DISABLED_IGNORED_TEST.rule_id: DISABLED_IGNORED_TEST,
     DUPLICATE_ASSERT.rule_id: DUPLICATE_ASSERT,
+    MAGIC_NUMBER_TEST.rule_id: MAGIC_NUMBER_TEST,
     CONDITIONAL_LOGIC.rule_id: CONDITIONAL_LOGIC,
 }
