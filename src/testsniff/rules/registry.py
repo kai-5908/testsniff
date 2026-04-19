@@ -5,6 +5,7 @@ from typing import cast
 from testsniff.config.types import ScanConfig
 from testsniff.rules.base import Rule
 from testsniff.rules.checks.comments_only_test import CommentsOnlyTestRule
+from testsniff.rules.checks.conditional_logic import ConditionalLogicRule
 from testsniff.rules.checks.disabled_ignored_test import DisabledIgnoredTestRule
 from testsniff.rules.checks.duplicate_assert import DuplicateAssertRule
 from testsniff.rules.checks.empty_test import EmptyTestRule
@@ -18,6 +19,7 @@ AVAILABLE_RULES: tuple[Rule, ...] = (
     cast(Rule, DisabledIgnoredTestRule()),
     cast(Rule, DuplicateAssertRule()),
     cast(Rule, MagicNumberTestRule()),
+    cast(Rule, ConditionalLogicRule()),
 )
 
 

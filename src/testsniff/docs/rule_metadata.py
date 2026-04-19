@@ -167,7 +167,6 @@ DUPLICATE_ASSERT = RuleMetadata(
         "docs/exec-plans/completed/2026-03-22-ts005-duplicate-assert.md",
     ),
 )
-
 MAGIC_NUMBER_TEST = RuleMetadata(
     rule_id="TS006",
     headline="Test uses unexplained magic number in expectation",
@@ -197,6 +196,36 @@ MAGIC_NUMBER_TEST = RuleMetadata(
         "docs/exec-plans/completed/2026-04-19-ts006-magic-number-test.md",
     ),
 )
+
+CONDITIONAL_LOGIC = RuleMetadata(
+    rule_id="TS007",
+    headline="Test contains conditional logic",
+    default_severity="warning",
+    default_confidence="high",
+    why=(
+        "Conditional branches make tests harder to read because the executed verification path "
+        "depends on control flow inside the test body."
+    ),
+    fix=(
+        "Split the scenarios into separate tests or move the branching setup into helpers so each "
+        "test keeps one clear verification path."
+    ),
+    example=ExampleSnippet(
+        bad=(
+            "def test_user_status(user):\n"
+            "    if user.is_admin:\n"
+            '        assert user.role == "admin"'
+        ),
+        good=(
+            "def test_admin_user_status(admin_user):\n"
+            '    assert admin_user.role == "admin"'
+        ),
+    ),
+    references=(
+        "docs/product-specs/rule-catalog-scope.md",
+        "docs/exec-plans/completed/2026-04-19-ts007-conditional-logic-in-tests.md",
+    ),
+)
 RULE_METADATA_BY_ID: dict[str, RuleMetadata] = {
     EMPTY_TEST.rule_id: EMPTY_TEST,
     COMMENTS_ONLY_TEST.rule_id: COMMENTS_ONLY_TEST,
@@ -204,4 +233,5 @@ RULE_METADATA_BY_ID: dict[str, RuleMetadata] = {
     DISABLED_IGNORED_TEST.rule_id: DISABLED_IGNORED_TEST,
     DUPLICATE_ASSERT.rule_id: DUPLICATE_ASSERT,
     MAGIC_NUMBER_TEST.rule_id: MAGIC_NUMBER_TEST,
+    CONDITIONAL_LOGIC.rule_id: CONDITIONAL_LOGIC,
 }
